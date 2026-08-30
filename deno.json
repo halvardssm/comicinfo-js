@@ -1,0 +1,12 @@
+{
+  "name": "@halvardm/comicinfo",
+  "version": "0.1.0",
+  "exports": {
+  },
+  "tasks": {
+  },
+  "license": "MIT",
+  "imports": {
+  },
+  "lock": false
+}
