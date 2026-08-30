@@ -2,9 +2,14 @@ import { z } from "@zod/zod";
 import type { XmlNode } from "@std/xml";
 import {
   elementNode,
-  type OverrideParseFn,
+  parse as baseParse,
+  parseIntNode,
+  type ParseOptions as BaseParseOptions,
+  type ParseOverrideParseFn,
+  parseStringArrayNode,
   stringify as baseStringify,
   type StringifyOptions as BaseStringifyOptions,
+  type StringifyOverrideParseFn,
 } from "./utils.ts";
 
 /**
@@ -305,7 +310,9 @@ export interface StringifyOptions<C = ComicInfo> extends BaseStringifyOptions {
   /**
    * Override parse functions for specific fields.
    */
-  overrideParse?: Partial<Record<keyof C, OverrideParseFn | undefined>>;
+  overrideParse?: Partial<
+    Record<keyof C, StringifyOverrideParseFn | undefined>
+  >;
 }
 
 /**
@@ -359,4 +366,77 @@ export function stringify(
   };
 
   return baseStringify(input, combinedOptions);
+}
+
+/**
+ * Options for stringifying ComicInfo to XML.
+ */
+export interface ParseOptions<C = ComicInfo> extends BaseParseOptions {
+  /**
+   * Override parse functions for specific fields.
+   */
+  overrideParse?: Partial<Record<keyof C, ParseOverrideParseFn | undefined>>;
+}
+
+export function parse(input: string, options?: ParseOptions): ComicInfo {
+  const combinedOptions: ParseOptions = {
+    validate: ComicInfo,
+    ...options,
+    overrideParse: {
+      Count: parseIntNode,
+      Volume: parseIntNode,
+      AlternateCount: parseIntNode,
+      Year: parseIntNode,
+      Month: parseIntNode,
+      PageCount: parseIntNode,
+      Writer: parseStringArrayNode,
+      Penciller: parseStringArrayNode,
+      Inker: parseStringArrayNode,
+      Colorist: parseStringArrayNode,
+      Letterer: parseStringArrayNode,
+      CoverArtist: parseStringArrayNode,
+      Editor: parseStringArrayNode,
+      Genre: parseStringArrayNode,
+      Web: parseStringArrayNode,
+      Pages: (input) => {
+        if (input.type !== "element" || input.name.local !== "Pages") {
+          throw new TypeError(
+            `Input is not an Pages XMLElement, found ${input.type}`,
+          );
+        }
+
+        const pages: ComicPageInfo[] = [];
+
+        for (const child of input.children) {
+          if (
+            child.type === "element" && child.name.local === "Page" &&
+            child.attributes.Image !== undefined
+          ) {
+            const page = ComicPageInfo.parse({
+              Image: parseInt(child.attributes.Image),
+              Type: child.attributes.Type,
+              DoublePage: child.attributes.DoublePage === "true" ? true : false,
+              ImageSize: child.attributes.ImageSize
+                ? parseInt(child.attributes.ImageSize)
+                : undefined,
+              Key: child.attributes.Key,
+              ImageWidth: child.attributes.ImageWidth
+                ? parseInt(child.attributes.ImageWidth)
+                : undefined,
+              ImageHeight: child.attributes.Type
+                ? parseInt(child.attributes.Type)
+                : undefined,
+            });
+
+            pages.push(page);
+          }
+        }
+
+        return { name: input.name.local, value: pages };
+      },
+      ...options?.overrideParse,
+    },
+  };
+
+  return baseParse(input, combinedOptions);
 }

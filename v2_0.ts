@@ -1,7 +1,14 @@
 import {
+  parseIntNode,
+  type ParseOverrideParseFn,
+  parseStringArrayNode,
+} from "./utils.ts";
+import {
   ComicInfo as V1ComicInfo,
   ComicPageInfo,
   ComicPageType,
+  parse as baseParse,
+  type ParseOptions as BaseParseOptions,
   StringArray,
   stringify as v1Stringify,
   type StringifyOptions as V1StringifyOptions,
@@ -189,4 +196,32 @@ export function stringify(
   };
 
   return v1Stringify(input, combinedOptions);
+}
+
+/**
+ * Options for stringifying ComicInfo to XML.
+ */
+export interface ParseOptions<C = ComicInfo> extends BaseParseOptions {
+  /**
+   * Override parse functions for specific fields.
+   */
+  overrideParse?: Partial<Record<keyof C, ParseOverrideParseFn | undefined>>;
+}
+
+export function parse(input: string, options?: ParseOptions): ComicInfo {
+  const combinedOptions: ParseOptions = {
+    validate: ComicInfo,
+    ...options,
+    overrideParse: {
+      Characters: parseStringArrayNode,
+      Teams: parseStringArrayNode,
+      Locations: parseStringArrayNode,
+      StoryArc: parseStringArrayNode,
+      SeriesGroup: parseStringArrayNode,
+      Day: parseIntNode,
+      ...options?.overrideParse,
+    },
+  };
+
+  return baseParse(input, combinedOptions);
 }

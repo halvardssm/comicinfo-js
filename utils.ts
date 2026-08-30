@@ -1,4 +1,6 @@
 import {
+  parse as xmlParse,
+  type ParseOptions as XmlParseOptions,
   stringify as xmlStringify,
   type StringifyOptions as XmlStringifyOptions,
   type XmlDocument,
@@ -8,7 +10,10 @@ import {
   type XmlTextNode,
 } from "@std/xml";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
-import { isStandardSchemaV1, parse } from "@stdext/validation";
+import {
+  isStandardSchemaV1,
+  parse as standardSchemaParse,
+} from "@stdext/validation";
 
 export type ElementNodeOptions = {
   attributes?: XmlElement["attributes"];
@@ -68,11 +73,11 @@ export function createXmlDocument(
   };
 }
 
-export type OverrideParseFn = (value: unknown) => XmlNode | undefined;
+export type StringifyOverrideParseFn = (value: unknown) => XmlNode | undefined;
 
 export interface StringifyOptions extends XmlStringifyOptions {
   schema?: string;
-  overrideParse?: Record<string, OverrideParseFn | undefined>;
+  overrideParse?: Record<string, StringifyOverrideParseFn | undefined>;
   order?: ReadonlyArray<string>;
   validate?: StandardSchemaV1;
 }
@@ -83,7 +88,7 @@ export function stringify(
 ): string {
   const parsed =
     (isStandardSchemaV1(options?.validate)
-      ? parse(options.validate, input)
+      ? standardSchemaParse(options.validate, input)
       : input) as Record<string, unknown>;
 
   const children: XmlNode[] = [];
@@ -114,4 +119,105 @@ export function stringify(
     ),
     options,
   );
+}
+
+export type ParserFn<V = unknown> = (
+  value: XmlNode,
+) => { name: string; value: V };
+
+export const parseTextNode: ParserFn<string> = (input) => {
+  if (input.type !== "element") {
+    throw new TypeError(`Input is not an XMLElement, found ${input.type}`);
+  }
+
+  if (input.children[0].type !== "text") {
+    throw new TypeError(
+      `Input is not an XMLElement->XmlTextNode, found ${
+        input.children[0].type
+      }`,
+    );
+  }
+
+  return { name: input.name.local, value: input.children[0].text };
+};
+
+export const parseIntNode: ParserFn<number> = (input) => {
+  const { name, value } = parseTextNode(input);
+
+  const parsedValue = parseInt(value);
+
+  if (Number.isSafeInteger(parsedValue)) {
+    throw new TypeError(
+      `Expected value to be an integer, was ${parsedValue}, original ${value}`,
+    );
+  }
+
+  return { name, value: parsedValue };
+};
+
+export const parseFloatNode: ParserFn<number> = (input) => {
+  const { name, value } = parseTextNode(input);
+
+  const parsedValue = parseFloat(value);
+
+  if (Number.isFinite(parsedValue)) {
+    throw new TypeError(
+      `Expected value to be an float, was ${parsedValue}, original ${value}`,
+    );
+  }
+
+  return { name, value: parsedValue };
+};
+
+export const parseStringArrayNode: ParserFn<string[]> = (input) => {
+  const { name, value } = parseTextNode(input);
+
+  const parsedValue = value.split(",");
+
+  return { name, value: parsedValue };
+};
+
+export type ParseOverrideParseFn<V = unknown> = (
+  value: XmlNode,
+) => { name: string; value: V } | undefined;
+
+export interface ParseOptions extends XmlParseOptions {
+  overrideParse?: Record<string, ParseOverrideParseFn | undefined>;
+  validate?: StandardSchemaV1;
+}
+
+export function parse(
+  input: string,
+  options?: ParseOptions,
+): Record<string, unknown> {
+  const combinedOptions: ParseOptions = {
+    ignoreComments: true,
+    ignoreWhitespace: true,
+    ...options,
+  };
+  const res = xmlParse(input, combinedOptions);
+
+  if (res.root.name.local !== "ComicInfo") {
+    throw new TypeError("XML Document does not seem to be of type ComicInfo");
+  }
+
+  const comicInfoObject: Record<string, unknown> = {};
+
+  for (const child of res.root.children) {
+    if (child.type === "element") {
+      const name = child.name.local;
+
+      if (combinedOptions?.overrideParse?.[name]) {
+        const res = combinedOptions.overrideParse[name](child);
+        if (res) {
+          comicInfoObject[res.name] = res.value;
+        }
+      } else {
+        const res = parseTextNode(child);
+        comicInfoObject[res.name] = res.value;
+      }
+    }
+  }
+
+  return comicInfoObject;
 }

@@ -5,11 +5,14 @@ import {
   ComicInfoManga,
   ComicPageInfo,
   ComicPageType,
+  parse as baseParse,
+  type ParseOptions as BaseParseOptions,
   StringArray,
   stringify as v2Stringify,
   type StringifyOptions as V2StringifyOptions,
   YesNo,
 } from "./v2_0.ts";
+import { type ParseOverrideParseFn, parseStringArrayNode } from "./utils.ts";
 
 export {
   AgeRating,
@@ -128,4 +131,29 @@ export function stringify(
   };
 
   return v2Stringify(input, combinedOptions);
+}
+
+/**
+ * Options for stringifying ComicInfo to XML.
+ */
+export interface ParseOptions<C = ComicInfo> extends BaseParseOptions {
+  /**
+   * Override parse functions for specific fields.
+   */
+  overrideParse?: Partial<Record<keyof C, ParseOverrideParseFn | undefined>>;
+}
+
+export function parse(input: string, options?: ParseOptions): ComicInfo {
+  const combinedOptions: ParseOptions = {
+    validate: ComicInfo,
+    ...options,
+    overrideParse: {
+      Translator: parseStringArrayNode,
+      Tags: parseStringArrayNode,
+      StoryArcNumber: parseStringArrayNode,
+      ...options?.overrideParse,
+    },
+  };
+
+  return baseParse(input, combinedOptions);
 }
