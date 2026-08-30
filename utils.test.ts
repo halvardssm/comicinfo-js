@@ -1,14 +1,5 @@
-import {
-  assert,
-  assertEquals,
-  assertStringIncludes,
-  assertThrows,
-} from "@std/assert";
-import {
-  parse as xmlParse,
-  stringify as xmlStringify,
-  type XmlElement,
-} from "@std/xml";
+import { assert, assertEquals } from "@std/assert";
+import { parse as xmlParse, type XmlElement } from "@std/xml";
 import {
   createXmlDocument,
   elementNode,
