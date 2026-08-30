@@ -2,11 +2,19 @@
   "name": "@halvardm/comicinfo",
   "version": "0.1.0",
   "exports": {
+    ".": "./mod.ts",
+    "./v1": "./v1_0.ts",
+    "./v2": "./v2_0.ts",
+    "./v2_1": "./v2_1.ts"
   },
   "tasks": {
+    "dev": "deno test --watch"
   },
   "license": "MIT",
   "imports": {
+    "@std/assert": "jsr:@std/assert@1",
+    "@std/xml": "jsr:@std/xml@^0.2.0",
+    "@zod/zod": "jsr:@zod/zod@^4.5.2"
   },
   "lock": false
 }
