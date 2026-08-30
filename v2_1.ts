@@ -11,7 +11,14 @@ import {
   YesNo,
 } from "./v2_0.ts";
 
-export { AgeRating, ComicInfoManga, ComicPageInfo, ComicPageType, YesNo };
+export {
+  AgeRating,
+  ComicInfoManga,
+  ComicPageInfo,
+  ComicPageType,
+  StringArray,
+  YesNo,
+};
 
 /**
  * The main ComicInfo schema for v2.1, extending v2.0 with additional fields.
@@ -47,8 +54,54 @@ export const ComicInfo = V2ComicInfo.extend({
 export type ComicInfo = z.infer<typeof ComicInfo>;
 
 /**
- * parser and stringify
+ * Order of the keys as the schema specifies a schema
  */
+export const COMIC_INFO_SEQUENCED_ORDER = [
+  "Title",
+  "Series",
+  "Number",
+  "Count",
+  "Volume",
+  "AlternateSeries",
+  "AlternateNumber",
+  "AlternateCount",
+  "Summary",
+  "Notes",
+  "Year",
+  "Month",
+  "Day",
+  "Writer",
+  "Penciller",
+  "Inker",
+  "Colorist",
+  "Letterer",
+  "CoverArtist",
+  "Editor",
+  "Translator",
+  "Publisher",
+  "Imprint",
+  "Genre",
+  "Tags",
+  "Web",
+  "PageCount",
+  "LanguageISO",
+  "Format",
+  "BlackAndWhite",
+  "Manga",
+  "Characters",
+  "Teams",
+  "Locations",
+  "ScanInformation",
+  "StoryArc",
+  "StoryArcNumber",
+  "SeriesGroup",
+  "AgeRating",
+  "Pages",
+  "CommunityRating",
+  "MainCharacterOrTeam",
+  "Review",
+  "GTIN",
+] as const;
 
 /**
  * Options for stringifying ComicInfo to XML.
@@ -62,14 +115,17 @@ export interface StringifyOptions<C = ComicInfo>
  * @param options - Options for stringifying.
  * @returns The XML string.
  */
-export function stringify(input: unknown, options?: StringifyOptions): string {
-  const parsed = ComicInfo.parse(input);
-
+export function stringify(
+  input: Record<string, unknown>,
+  options?: StringifyOptions,
+): string {
   const combinedOptions: StringifyOptions = {
     schema:
       "https://github.com/anansi-project/comicinfo/raw/refs/heads/main/drafts/v2.1/ComicInfo.xsd",
+    order: COMIC_INFO_SEQUENCED_ORDER,
+    validate: ComicInfo,
     ...options,
   };
 
-  return v2Stringify(parsed, combinedOptions);
+  return v2Stringify(input, combinedOptions);
 }

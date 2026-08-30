@@ -7,6 +7,8 @@ import {
   type XmlNode,
   type XmlTextNode,
 } from "@std/xml";
+import type { StandardSchemaV1 } from "@standard-schema/spec";
+import { isStandardSchemaV1, parse } from "@stdext/validation";
 
 export type ElementNodeOptions = {
   attributes?: XmlElement["attributes"];
@@ -71,15 +73,26 @@ export type OverrideParseFn = (value: unknown) => XmlNode | undefined;
 export interface StringifyOptions extends XmlStringifyOptions {
   schema?: string;
   overrideParse?: Record<string, OverrideParseFn | undefined>;
+  order?: ReadonlyArray<string>;
+  validate?: StandardSchemaV1;
 }
 
 export function stringify(
   input: Record<string, unknown>,
   options?: StringifyOptions,
 ): string {
+  const parsed =
+    (isStandardSchemaV1(options?.validate)
+      ? parse(options.validate, input)
+      : input) as Record<string, unknown>;
+
   const children: XmlNode[] = [];
 
-  for (const [key, val] of Object.entries(input)) {
+  const keys = options?.order ?? Object.keys(parsed);
+
+  for (const key of keys) {
+    const val = parsed[key];
+
     if (options?.overrideParse?.[key]) {
       const res = options.overrideParse[key](val);
       if (res) {

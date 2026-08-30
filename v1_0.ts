@@ -244,12 +244,12 @@ export const ComicInfo = z.object({
    * Whether the book is in black and white.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#blackandwhite|BlackAndWhite}
    */
-  BlackAndWhite: YesNo,
+  BlackAndWhite: YesNo.optional(),
   /**
    * Whether the book is a manga.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#manga|Manga}
    */
-  Manga: YesNo,
+  Manga: YesNo.optional(),
   /**
    * Describes each page of the book.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#pages--comicpageinfo|Pages / ComicPageInfo}
@@ -262,6 +262,41 @@ export const ComicInfo = z.object({
  * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md|Schema documentation}
  */
 export type ComicInfo = z.infer<typeof ComicInfo>;
+
+/**
+ * Order of the keys as the schema specifies a schema
+ */
+export const COMIC_INFO_SEQUENCED_ORDER = [
+  "Title",
+  "Series",
+  "Number",
+  "Count",
+  "Volume",
+  "AlternateSeries",
+  "AlternateNumber",
+  "AlternateCount",
+  "Summary",
+  "Notes",
+  "Year",
+  "Month",
+  "Writer",
+  "Penciller",
+  "Inker",
+  "Colorist",
+  "Letterer",
+  "CoverArtist",
+  "Editor",
+  "Publisher",
+  "Imprint",
+  "Genre",
+  "Web",
+  "PageCount",
+  "LanguageISO",
+  "Format",
+  "BlackAndWhite",
+  "Manga",
+  "Pages",
+] as const;
 
 /**
  * Options for stringifying ComicInfo to XML.
@@ -279,12 +314,15 @@ export interface StringifyOptions<C = ComicInfo> extends BaseStringifyOptions {
  * @param options - Options for stringifying.
  * @returns The XML string.
  */
-export function stringify(input: unknown, options?: StringifyOptions): string {
-  const parsed = ComicInfo.parse(input);
-
+export function stringify(
+  input: Record<string, unknown>,
+  options?: StringifyOptions,
+): string {
   const combinedOptions: StringifyOptions = {
     schema:
       "https://github.com/anansi-project/comicinfo/raw/refs/heads/main/schema/v1.0/ComicInfo.xsd",
+    order: COMIC_INFO_SEQUENCED_ORDER,
+    validate: ComicInfo,
     ...options,
     overrideParse: {
       Pages: (value) => {
@@ -320,5 +358,5 @@ export function stringify(input: unknown, options?: StringifyOptions): string {
     },
   };
 
-  return baseStringify(parsed, combinedOptions);
+  return baseStringify(input, combinedOptions);
 }

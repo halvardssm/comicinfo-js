@@ -119,8 +119,50 @@ export const ComicInfo = V1ComicInfo.extend({
 export type ComicInfo = z.infer<typeof ComicInfo>;
 
 /**
- * parser and stringify
+ * Order of the keys as the schema specifies a schema
  */
+export const COMIC_INFO_SEQUENCED_ORDER = [
+  "Title",
+  "Series",
+  "Number",
+  "Count",
+  "Volume",
+  "AlternateSeries",
+  "AlternateNumber",
+  "AlternateCount",
+  "Summary",
+  "Notes",
+  "Year",
+  "Month",
+  "Day",
+  "Writer",
+  "Penciller",
+  "Inker",
+  "Colorist",
+  "Letterer",
+  "CoverArtist",
+  "Editor",
+  "Publisher",
+  "Imprint",
+  "Genre",
+  "Web",
+  "PageCount",
+  "LanguageISO",
+  "Format",
+  "BlackAndWhite",
+  "Manga",
+  "Characters",
+  "Teams",
+  "Locations",
+  "ScanInformation",
+  "StoryArc",
+  "SeriesGroup",
+  "AgeRating",
+  "Pages",
+  "CommunityRating",
+  "MainCharacterOrTeam",
+  "Review",
+] as const;
 
 /**
  * Options for stringifying ComicInfo to XML.
@@ -134,14 +176,17 @@ export interface StringifyOptions<C = ComicInfo>
  * @param options - Options for stringifying.
  * @returns The XML string.
  */
-export function stringify(input: unknown, options?: StringifyOptions): string {
-  const parsed = ComicInfo.parse(input);
-
+export function stringify(
+  input: Record<string, unknown>,
+  options?: StringifyOptions,
+): string {
   const combinedOptions: StringifyOptions = {
     schema:
       "https://github.com/anansi-project/comicinfo/raw/refs/heads/main/schema/v2.0/ComicInfo.xsd",
+    order: COMIC_INFO_SEQUENCED_ORDER,
+    validate: ComicInfo,
     ...options,
   };
 
-  return v1Stringify(parsed, combinedOptions);
+  return v1Stringify(input, combinedOptions);
 }
