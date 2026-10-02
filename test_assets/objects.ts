@@ -1,6 +1,7 @@
 import type { z } from "@zod/zod";
 import { ComicInfoSchema } from "../v1_0.ts";
 import { ComicInfoSchema as V2ComicInfoSchema } from "../v2_0.ts";
+import { ComicInfoSchema as V2_1ComicInfoSchema } from "../v2_1.ts";
 
 /**
  * Test object covering all v1.0 fields.
@@ -68,3 +69,14 @@ export const TEST_OBJECT_V2 = {
   MainCharacterOrTeam: "Spider-Man",
   Review: "good soup.",
 } satisfies z.input<typeof V2ComicInfoSchema>;
+
+/**
+ * Test object covering all v2.1 fields.
+ */
+export const TEST_OBJECT_V2_1 = {
+  ...TEST_OBJECT_V2,
+  Translator: ["Some translator"],
+  Tags: ["action"],
+  StoryArcNumber: ["1"],
+  GTIN: "00123456789012",
+} satisfies z.input<typeof V2_1ComicInfoSchema>;

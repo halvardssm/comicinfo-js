@@ -185,7 +185,9 @@ export {
  */
 
 export class ComicInfo extends V1ComicInfo {
-  protected static override COMIC_INFO_SEQUENCED_ORDER = [
+  protected static override COMIC_INFO_SEQUENCED_ORDER: ReadonlyArray<
+    string
+  > = [
     "Title",
     "Series",
     "Number",
