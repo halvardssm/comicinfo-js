@@ -2,22 +2,15 @@ import { z } from "@zod/zod";
 import { XMLValidator } from "@stdext/xml";
 import {
   ComicInfo as V2ComicInfo,
+  type ComicInfoOptions,
   ComicInfoSchema as V2ComicInfoSchema,
   StringArray,
+  type StringifyOptions,
 } from "./v2_0.ts";
-import type {
-  ComicInfoOptions as BaseComicInfoOptions,
-  ParseOptions as BaseParseOptions,
-  ParseXmlNodeFn,
-  StringifyOptions as BaseStringifyOptions,
-  ToXmlNodeFn,
-} from "./utils.ts";
+import type { ComicInfoOptions as BaseComicInfoOptions } from "./utils.ts";
 import comicInfoXsd from "./xsd/2_1.xsd" with { type: "text" };
 
 const comicInfoValidator = new XMLValidator(comicInfoXsd);
-
-const COMIC_INFO_SCHEMA_LOCATION =
-  "https://github.com/anansi-project/comicinfo/raw/refs/heads/main/drafts/v2.1/ComicInfo.xsd";
 
 /**
  * SCHEMAS
@@ -76,6 +69,12 @@ export {
  */
 
 export class ComicInfo extends V2ComicInfo {
+  /**
+   * Location of the XSD advertised by the generated XML.
+   */
+  protected static override COMIC_INFO_SCHEMA_LOCATION =
+    "https://github.com/anansi-project/comicinfo/raw/refs/heads/main/drafts/v2.1/ComicInfo.xsd";
+
   protected static override COMIC_INFO_SEQUENCED_ORDER = [
     "Title",
     "Series",
@@ -123,6 +122,17 @@ export class ComicInfo extends V2ComicInfo {
     "GTIN",
   ] as const;
 
+  /**
+   * Zod schema used to validate data.
+   */
+  protected static override COMIC_INFO_DATA_SCHEMA:
+    BaseComicInfoOptions["dataSchema"] = ComicInfoSchema;
+
+  /**
+   * Validator used to validate XML against the XSD.
+   */
+  protected static override COMIC_INFO_VALIDATOR = comicInfoValidator;
+
   constructor(data: ComicInfoSchemaInput, options?: ComicInfoOptions) {
     const combinedOptions: BaseComicInfoOptions = {
       dataSchema: ComicInfoSchema,
@@ -132,72 +142,19 @@ export class ComicInfo extends V2ComicInfo {
     super(data, combinedOptions);
   }
 
-  override stringify(options?: StringifyOptions): string {
-    const combinedOptions: StringifyOptions = {
-      order: ComicInfo.COMIC_INFO_SEQUENCED_ORDER,
-      schemaLocation: COMIC_INFO_SCHEMA_LOCATION,
-      ...options,
-    };
-
-    return super.stringify(combinedOptions);
-  }
-
-  static override parse(data: string, options?: ParseOptions): ComicInfo {
-    const combinedOptions: ParseOptions = {
-      dataSchema: ComicInfoSchema,
-      comicInfoValidator,
-      ComicInfoClass: ComicInfo,
-      ...options,
-      overrideParseXmlNode: {
-        Translator: this._parseStringArrayNode,
-        Tags: this._parseStringArrayNode,
-        StoryArcNumber: this._parseStringArrayNode,
-        ...options?.overrideParseXmlNode,
-      },
-    };
-
-    return super.parse(data, combinedOptions);
-  }
+  /**
+   * Functions used to parse specific XML elements.
+   */
+  protected static override COMIC_INFO_PARSE_XML_NODE_OVERRIDES = {
+    ...V2ComicInfo.COMIC_INFO_PARSE_XML_NODE_OVERRIDES,
+    Translator: this._parseStringArrayNode,
+    Tags: this._parseStringArrayNode,
+    StoryArcNumber: this._parseStringArrayNode,
+  };
 }
 
 /**
  * TYPES
  */
 
-export interface ComicInfoOptions extends Partial<BaseComicInfoOptions> {
-}
-
-/**
- * Options for stringifying ComicInfo to XML.
- */
-export interface StringifyOptions<C = ComicInfoSchema>
-  extends BaseStringifyOptions {
-  /**
-   * Override to-XML node functions for specific fields.
-   */
-  overrideToXmlNode?: Partial<
-    Record<keyof C, ToXmlNodeFn | undefined>
-  >;
-}
-
-/**
- * Options for parsing XML to ComicInfo.
- */
-export interface ParseOptions<C = ComicInfoSchema> {
-  /**
-   * Data schema used to validate the parsed data. Defaults to {@link ComicInfoSchema}.
-   */
-  dataSchema?: BaseParseOptions["dataSchema"];
-  /**
-   * Validator used to validate the input XML. Defaults to the v2.1 ComicInfo XSD.
-   */
-  comicInfoValidator?: BaseParseOptions["comicInfoValidator"];
-  /**
-   * Class used to construct the parsed ComicInfo. Defaults to the v2.1 ComicInfo class.
-   */
-  ComicInfoClass?: BaseParseOptions["ComicInfoClass"];
-  /**
-   * Override parse functions for specific fields.
-   */
-  overrideParseXmlNode?: Partial<Record<keyof C, ParseXmlNodeFn | undefined>>;
-}
+export type { ComicInfoOptions, StringifyOptions };

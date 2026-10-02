@@ -2,26 +2,22 @@ import { z } from "@zod/zod";
 import { XMLValidator } from "@stdext/xml";
 import {
   ComicInfo as V1ComicInfo,
+  type ComicInfoOptions,
   ComicInfoSchema as V1ComicInfoSchema,
   type ComicInfoSchemaInput as V1ComicInfoSchemaInput,
   ComicPageInfoInputSchema as V1ComicPageInfoInputSchema,
   ComicPageTypeSchema,
   StringArraySchema,
+  type StringifyOptions,
   YesNoSchema,
 } from "./v1_0.ts";
 import type {
   ComicInfoOptions as BaseComicInfoOptions,
-  ParseOptions as BaseParseOptions,
   ParseXmlNodeFn,
-  StringifyOptions as BaseStringifyOptions,
-  ToXmlNodeFn,
 } from "./utils.ts";
 import comicInfoXsd from "./xsd/2_0.xsd" with { type: "text" };
 
 const comicInfoValidator = new XMLValidator(comicInfoXsd);
-
-const COMIC_INFO_SCHEMA_LOCATION =
-  "https://github.com/anansi-project/comicinfo/raw/refs/heads/main/schema/v2.0/ComicInfo.xsd";
 
 /**
  * SCHEMAS
@@ -185,6 +181,12 @@ export {
  */
 
 export class ComicInfo extends V1ComicInfo {
+  /**
+   * Location of the XSD advertised by the generated XML.
+   */
+  protected static override COMIC_INFO_SCHEMA_LOCATION =
+    "https://github.com/anansi-project/comicinfo/raw/refs/heads/main/schema/v2.0/ComicInfo.xsd";
+
   protected static override COMIC_INFO_SEQUENCED_ORDER: ReadonlyArray<
     string
   > = [
@@ -230,6 +232,17 @@ export class ComicInfo extends V1ComicInfo {
     "Review",
   ] as const;
 
+  /**
+   * Zod schema used to validate data.
+   */
+  protected static override COMIC_INFO_DATA_SCHEMA:
+    BaseComicInfoOptions["dataSchema"] = ComicInfoSchema;
+
+  /**
+   * Validator used to validate XML against the XSD.
+   */
+  protected static override COMIC_INFO_VALIDATOR = comicInfoValidator;
+
   constructor(data: ComicInfoSchemaInput, options?: ComicInfoOptions) {
     const combinedOptions: BaseComicInfoOptions = {
       dataSchema: ComicInfoSchema,
@@ -239,38 +252,6 @@ export class ComicInfo extends V1ComicInfo {
     // The v1.0 constructor narrows the input type; the v2.0 input is a
     // superset of it and is validated by the v2.0 schema.
     super(data as V1ComicInfoSchemaInput, combinedOptions);
-  }
-
-  override stringify(options?: StringifyOptions): string {
-    const combinedOptions: StringifyOptions = {
-      order: ComicInfo.COMIC_INFO_SEQUENCED_ORDER,
-      schemaLocation: COMIC_INFO_SCHEMA_LOCATION,
-      ...options,
-    };
-
-    return super.stringify(combinedOptions);
-  }
-
-  static override parse(data: string, options?: ParseOptions): ComicInfo {
-    const combinedOptions: ParseOptions = {
-      dataSchema: ComicInfoSchema,
-      comicInfoValidator,
-      ComicInfoClass: ComicInfo,
-      ...options,
-      overrideParseXmlNode: {
-        Day: this._parseIntNode,
-        Characters: this._parseStringArrayNode,
-        Teams: this._parseStringArrayNode,
-        Locations: this._parseStringArrayNode,
-        StoryArc: this._parseStringArrayNode,
-        SeriesGroup: this._parseStringArrayNode,
-        CommunityRating: this._parseFloatNode,
-        Pages: ComicInfo._parsePagesNode,
-        ...options?.overrideParseXmlNode,
-      },
-    };
-
-    return super.parse(data, combinedOptions);
   }
 
   /**
@@ -304,46 +285,25 @@ export class ComicInfo extends V1ComicInfo {
 
     return { name, value: pages };
   };
+
+  /**
+   * Functions used to parse specific XML elements.
+   */
+  protected static override COMIC_INFO_PARSE_XML_NODE_OVERRIDES = {
+    ...V1ComicInfo.COMIC_INFO_PARSE_XML_NODE_OVERRIDES,
+    Day: this._parseIntNode,
+    Characters: this._parseStringArrayNode,
+    Teams: this._parseStringArrayNode,
+    Locations: this._parseStringArrayNode,
+    StoryArc: this._parseStringArrayNode,
+    SeriesGroup: this._parseStringArrayNode,
+    CommunityRating: this._parseFloatNode,
+    Pages: this._parsePagesNode,
+  };
 }
 
 /**
  * TYPES
  */
 
-export interface ComicInfoOptions extends Partial<BaseComicInfoOptions> {
-}
-
-/**
- * Options for stringifying ComicInfo to XML.
- */
-export interface StringifyOptions<C = ComicInfoSchema>
-  extends BaseStringifyOptions {
-  /**
-   * Override to-XML node functions for specific fields.
-   */
-  overrideToXmlNode?: Partial<
-    Record<keyof C, ToXmlNodeFn | undefined>
-  >;
-}
-
-/**
- * Options for parsing XML to ComicInfo.
- */
-export interface ParseOptions<C = ComicInfoSchema> {
-  /**
-   * Data schema used to validate the parsed data. Defaults to {@link ComicInfoSchema}.
-   */
-  dataSchema?: BaseParseOptions["dataSchema"];
-  /**
-   * Validator used to validate the input XML. Defaults to the v2.0 ComicInfo XSD.
-   */
-  comicInfoValidator?: BaseParseOptions["comicInfoValidator"];
-  /**
-   * Class used to construct the parsed ComicInfo. Defaults to the v2.0 ComicInfo class.
-   */
-  ComicInfoClass?: BaseParseOptions["ComicInfoClass"];
-  /**
-   * Override parse functions for specific fields.
-   */
-  overrideParseXmlNode?: Partial<Record<keyof C, ParseXmlNodeFn | undefined>>;
-}
+export type { ComicInfoOptions, StringifyOptions };

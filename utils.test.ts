@@ -42,6 +42,9 @@ class TestComicInfo extends ComicInfo {
   static parseTextNode = ComicInfo._parseTextNode;
   static parseIntNode = ComicInfo._parseIntNode;
   static parseStringArrayNode = ComicInfo._parseStringArrayNode;
+
+  protected static override COMIC_INFO_DATA_SCHEMA = testSchema;
+  protected static override COMIC_INFO_VALIDATOR = new XMLValidator(testXsd);
 }
 
 // ============================================================================
@@ -265,12 +268,16 @@ Deno.test("stringify: handles empty input object", () => {
   assertEquals(parsed.root.children, []);
 });
 
-Deno.test("stringify: uses order option to sequence elements", () => {
-  // The data is in reverse sequence order; the order option restores it.
-  const result = new ComicInfo(
+Deno.test("stringify: uses the sequenced order from the class", () => {
+  class OrderedComicInfo extends ComicInfo {
+    protected static override COMIC_INFO_SEQUENCED_ORDER = ["Title", "Series"];
+  }
+
+  // The data is in reverse sequence order; the class order restores it.
+  const result = new OrderedComicInfo(
     { Series: "Test Series", Title: "Test" },
     testOptions,
-  ).stringify({ order: ["Title", "Series"] });
+  ).stringify();
 
   const parsed = XML.parse(result);
 
@@ -280,17 +287,20 @@ Deno.test("stringify: uses order option to sequence elements", () => {
   );
 });
 
-Deno.test("stringify: uses overrideToXmlNode for custom element handling", () => {
-  const result = new ComicInfo({ Title: "Test" }, testOptions).stringify({
-    overrideToXmlNode: {
-      Title: (val) =>
+Deno.test("stringify: uses the to-XML node overrides from the class", () => {
+  class CustomComicInfo extends ComicInfo {
+    protected static override COMIC_INFO_TO_XML_NODE_OVERRIDES = {
+      Title: (val: unknown) =>
         TestComicInfo.elementNode("CustomField", {
           children: [
             { type: "text", text: `custom-${val}` } as const,
           ],
         }),
-    },
-  });
+    };
+  }
+
+  const result = new CustomComicInfo({ Title: "Test" }, testOptions)
+    .stringify();
 
   const parsed = XML.parse(result);
 
@@ -309,12 +319,15 @@ Deno.test("stringify: uses overrideToXmlNode for custom element handling", () =>
   ]);
 });
 
-Deno.test("stringify: overrideToXmlNode can return undefined to skip field", () => {
-  const result = new ComicInfo({ Title: "Test" }, testOptions).stringify({
-    overrideToXmlNode: {
+Deno.test("stringify: to-XML node overrides can return undefined to skip field", () => {
+  class SkippingComicInfo extends ComicInfo {
+    protected static override COMIC_INFO_TO_XML_NODE_OVERRIDES = {
       Title: () => undefined,
-    },
-  });
+    };
+  }
+
+  const result = new SkippingComicInfo({ Title: "Test" }, testOptions)
+    .stringify();
 
   const parsed = XML.parse(result);
 
@@ -326,48 +339,48 @@ Deno.test("stringify: overrideToXmlNode can return undefined to skip field", () 
 // ============================================================================
 
 Deno.test("parse: returns ComicInfo instance with parsed text fields", () => {
-  const result = ComicInfo.parse(
+  const result = TestComicInfo.parse(
     `<?xml version="1.0" encoding="utf-8"?><ComicInfo><Title>Test</Title><Series>Test Series</Series></ComicInfo>`,
-    testOptions,
   );
 
-  assert(result instanceof ComicInfo);
+  assert(result instanceof TestComicInfo);
   assertEquals(result.data, { Title: "Test", Series: "Test Series" });
 });
 
-Deno.test("parse: uses overrideParseXmlNode for custom value handling", () => {
-  const result = ComicInfo.parse(
+Deno.test("parse: uses the parse node overrides from the class", () => {
+  class CustomParseComicInfo extends TestComicInfo {
+    protected static override COMIC_INFO_PARSE_XML_NODE_OVERRIDES = {
+      Year: TestComicInfo.parseIntNode,
+    };
+  }
+
+  const result = CustomParseComicInfo.parse(
     `<?xml version="1.0" encoding="utf-8"?><ComicInfo><Year>2024</Year></ComicInfo>`,
-    {
-      ...testOptions,
-      overrideParseXmlNode: { Year: TestComicInfo.parseIntNode },
-    },
   );
 
+  assert(result instanceof CustomParseComicInfo);
   assertEquals(result.data, { Year: 2024 });
 });
 
-Deno.test("parse: uses ComicInfoClass to construct the result", () => {
-  class MyComicInfo extends ComicInfo {}
+Deno.test("parse: constructs instances of the called class", () => {
+  class MyComicInfo extends TestComicInfo {}
 
-  const result = ComicInfo.parse(
+  const result = MyComicInfo.parse(
     `<?xml version="1.0" encoding="utf-8"?><ComicInfo><Title>Test</Title></ComicInfo>`,
-    { ...testOptions, ComicInfoClass: MyComicInfo },
   );
 
   assert(result instanceof MyComicInfo);
 });
 
 Deno.test("parse: throws on invalid XML", () => {
-  assertThrows(() => ComicInfo.parse("not valid xml", testOptions));
+  assertThrows(() => TestComicInfo.parse("not valid xml"));
 });
 
 Deno.test("parse: throws on XML not matching the XSD", () => {
   assertThrows(
     () =>
-      ComicInfo.parse(
+      TestComicInfo.parse(
         `<?xml version="1.0" encoding="utf-8"?><NotComicInfo><Title>Test</Title></NotComicInfo>`,
-        testOptions,
       ),
     Error,
     "NotComicInfo",

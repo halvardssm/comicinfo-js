@@ -8,7 +8,6 @@ import {
   type XmlTextNode,
   type XMLValidator,
 } from "@stdext/xml";
-import type { AnyConstructor } from "@stdext/types";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { parse as standardSchemaParse } from "@stdext/validation";
 
@@ -20,6 +19,46 @@ export class ComicInfo {
   protected _dataSchema: ComicInfoOptions["dataSchema"];
   protected _comicInfoValidator: ComicInfoOptions["comicInfoValidator"];
 
+  /**
+   * Zod schema used to validate data.
+   */
+  protected static COMIC_INFO_DATA_SCHEMA: ComicInfoOptions["dataSchema"];
+
+  /**
+   * Validator used to validate XML against the XSD.
+   */
+  protected static COMIC_INFO_VALIDATOR: XMLValidator;
+
+  /**
+   * Location of the XSD advertised by the generated XML.
+   */
+  protected static COMIC_INFO_SCHEMA_LOCATION =
+    "https://github.com/anansi-project/comicinfo/raw/refs/heads/main/schema/v1.0/ComicInfo.xsd";
+
+  /**
+   * Order of the elements in the generated XML, as specified by the schema.
+   * When undefined, the data insertion order is used.
+   */
+  protected static COMIC_INFO_SEQUENCED_ORDER:
+    | ReadonlyArray<string>
+    | undefined = undefined;
+
+  /**
+   * Functions used to convert specific data fields to XML nodes.
+   */
+  protected static COMIC_INFO_TO_XML_NODE_OVERRIDES: Record<
+    string,
+    ToXmlNodeFn
+  > = {};
+
+  /**
+   * Functions used to parse specific XML elements.
+   */
+  protected static COMIC_INFO_PARSE_XML_NODE_OVERRIDES: Record<
+    string,
+    OverrideParseXmlNodeFn
+  > = {};
+
   constructor(data: Record<string, unknown>, options: ComicInfoOptions) {
     this.data = data;
     this._dataSchema = options.dataSchema;
@@ -27,33 +66,27 @@ export class ComicInfo {
   }
 
   stringify(options?: StringifyOptions): string {
+    const cls = this.constructor as typeof ComicInfo;
+
     const parsed = standardSchemaParse(this._dataSchema, this.data);
 
     const children: XmlNode[] = [];
 
-    const keys = options?.order ?? Object.keys(parsed);
+    const keys = cls.COMIC_INFO_SEQUENCED_ORDER ?? Object.keys(parsed);
 
     for (const key of keys) {
       const val = parsed[key];
-
-      if (options?.overrideToXmlNode?.[key]) {
-        const res = options.overrideToXmlNode[key](val);
-        if (res) {
-          children.push(res);
-        }
-      } else {
-        const res = ComicInfo._textNode(key, val);
-        if (res) {
-          children.push(res);
-        }
+      const override = cls.COMIC_INFO_TO_XML_NODE_OVERRIDES[key];
+      const res = override ? override(val) : ComicInfo._textNode(key, val);
+      if (res) {
+        children.push(res);
       }
     }
 
     const xmlDocument = ComicInfo._documentWrapper(children, {
       attributes: {
         "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
-        "xsi:noNamespaceSchemaLocation": options?.schemaLocation ??
-          "https://github.com/anansi-project/comicinfo/raw/refs/heads/main/schema/v1.0/ComicInfo.xsd",
+        "xsi:noNamespaceSchemaLocation": cls.COMIC_INFO_SCHEMA_LOCATION,
       },
     });
     const res = XML.parse(xmlDocument).stringify(options);
@@ -63,20 +96,20 @@ export class ComicInfo {
     return res;
   }
 
-  static parse(
-    data: string,
-    options: ParseOptions,
-  ): ComicInfo {
-    const parsed = new XML(options.comicInfoValidator.parse(data));
+  static parse(data: string): ComicInfo {
+    const cls = this as typeof ComicInfo;
+
+    const parsed = new XML(cls.COMIC_INFO_VALIDATOR.parse(data));
 
     const comicInfoObject: Record<string, unknown> = {};
 
     for (const child of parsed.root.children) {
       if (child.type === "element") {
         const name = child.name.local;
+        const override = cls.COMIC_INFO_PARSE_XML_NODE_OVERRIDES[name];
 
-        if (options?.overrideParseXmlNode?.[name]) {
-          const res = options.overrideParseXmlNode[name](child);
+        if (override) {
+          const res = override(child);
           if (res) {
             comicInfoObject[res.name] = res.value;
           }
@@ -87,17 +120,15 @@ export class ComicInfo {
       }
     }
 
-    const validated = standardSchemaParse(options.dataSchema, comicInfoObject);
+    const validated = standardSchemaParse(
+      cls.COMIC_INFO_DATA_SCHEMA,
+      comicInfoObject,
+    );
 
-    return options.ComicInfoClass
-      ? new options.ComicInfoClass(validated, {
-        comicInfoValidator: options.comicInfoValidator,
-        dataSchema: options.dataSchema,
-      })
-      : new ComicInfo(validated, {
-        comicInfoValidator: options.comicInfoValidator,
-        dataSchema: options.dataSchema,
-      });
+    return new cls(validated, {
+      comicInfoValidator: cls.COMIC_INFO_VALIDATOR,
+      dataSchema: cls.COMIC_INFO_DATA_SCHEMA,
+    });
   }
 
   /**
@@ -228,11 +259,7 @@ export type DocumentWrapperOptions = {
 
 export type ToXmlNodeFn = (value: unknown) => XmlNode | undefined;
 
-export interface StringifyOptions extends XmlStringifyOptions {
-  overrideToXmlNode?: Record<string, ToXmlNodeFn | undefined>;
-  order?: ReadonlyArray<string>;
-  schemaLocation?: string;
-}
+export type StringifyOptions = XmlStringifyOptions;
 
 export type ComicInfoOptions = {
   dataSchema: StandardSchemaV1<Record<string, unknown>>;
@@ -246,13 +273,3 @@ export type ParseXmlNodeFn<V = unknown> = (
 export type OverrideParseXmlNodeFn<V = unknown> = (
   value: XmlNode,
 ) => { name: string; value: V } | undefined;
-
-export interface ParseOptions {
-  dataSchema: ComicInfoOptions["dataSchema"];
-  comicInfoValidator: XMLValidator;
-  overrideParseXmlNode?: Record<string, OverrideParseXmlNodeFn | undefined>;
-  ComicInfoClass?: AnyConstructor<
-    ComicInfo,
-    ConstructorParameters<typeof ComicInfo>
-  >;
-}

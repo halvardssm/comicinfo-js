@@ -9,7 +9,6 @@ export type {
   DocumentWrapperOptions,
   ElementNodeOptions,
   OverrideParseXmlNodeFn,
-  ParseOptions as BaseParseOptions,
   ParseXmlNodeFn,
   StringifyOptions as BaseStringifyOptions,
   ToXmlNodeFn,
