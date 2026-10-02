@@ -1,18 +1,83 @@
-import { assert, assertEquals } from "@std/assert";
-import { parse as xmlParse, type XmlElement } from "@std/xml";
-import {
-  createXmlDocument,
-  elementNode,
-  stringify,
-  textNode as createTextNode,
-} from "./utils.ts";
+import { assert, assertEquals, assertThrows } from "@std/assert";
+import { XML, type XmlElement, XMLValidator } from "@stdext/xml";
+import { z } from "@zod/zod";
+import { ComicInfo, type ToXmlNodeFn } from "./utils.ts";
+
+/**
+ * Minimal ComicInfo-like schema and XSD used to test the base class in isolation.
+ */
+const testXsd = `<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="ComicInfo">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element minOccurs="0" maxOccurs="1" name="Title" type="xs:string"/>
+        <xs:element minOccurs="0" maxOccurs="1" name="Series" type="xs:string"/>
+        <xs:element minOccurs="0" maxOccurs="1" name="Year" type="xs:int"/>
+        <xs:element minOccurs="0" maxOccurs="1" name="CustomField" type="xs:string"/>
+        <xs:element minOccurs="0" maxOccurs="1" name="Pages" type="ArrayOfComicPageInfo"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+  <xs:complexType name="ArrayOfComicPageInfo">
+    <xs:sequence>
+      <xs:element minOccurs="0" maxOccurs="unbounded" name="Page" nillable="true" type="ComicPageInfo"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="ComicPageInfo">
+    <xs:attribute name="Image" type="xs:int" use="required"/>
+  </xs:complexType>
+</xs:schema>`;
+
+const testSchema = z.object({
+  Title: z.string().optional(),
+  Series: z.string().optional(),
+  Year: z.number().optional(),
+  CustomField: z.string().optional(),
+  Pages: z.array(z.object({ Image: z.number() })).optional(),
+});
+
+/**
+ * Exposes the protected static helpers of the base class for testing.
+ */
+class TestComicInfo extends ComicInfo {
+  static elementNode = ComicInfo._elementNode;
+  static textNode = ComicInfo._textNode;
+  static documentWrapper = ComicInfo._documentWrapper;
+  static parseTextNode = ComicInfo._parseTextNode;
+  static parseIntNode = ComicInfo._parseIntNode;
+  static parseStringArrayNode = ComicInfo._parseStringArrayNode;
+
+  protected static override COMIC_INFO_DATA_SCHEMA = testSchema;
+  protected static override COMIC_INFO_VALIDATOR = new XMLValidator(testXsd);
+
+  protected static override COMIC_INFO_TO_XML_NODE_FNS: Record<
+    string,
+    ToXmlNodeFn
+  > = {
+    Pages: (input: unknown) => {
+      if (!Array.isArray(input) || input.length === 0) return undefined;
+      return TestComicInfo.elementNode("Pages", {
+        children: input.map((page) =>
+          TestComicInfo.elementNode("Page", {
+            attributes: Object.fromEntries(
+              Object.entries(page as Record<string, unknown>)
+                .filter(([, value]) => value != null)
+                .map(([key, value]) => [key, String(value)]),
+            ),
+          })
+        ),
+      });
+    },
+  };
+}
 
 // ============================================================================
 // elementNode tests
 // ============================================================================
 
 Deno.test("elementNode: creates element with string name", () => {
-  const result = elementNode("TestElement");
+  const result = TestComicInfo.elementNode("TestElement");
 
   assert(result.type === "element");
   assertEquals(result.name, { raw: "TestElement", local: "TestElement" });
@@ -22,7 +87,7 @@ Deno.test("elementNode: creates element with string name", () => {
 
 Deno.test("elementNode: creates element with XmlName object", () => {
   const name = { raw: "TestElement", local: "TestElement" };
-  const result = elementNode(name);
+  const result = TestComicInfo.elementNode(name);
 
   assert(result.type === "element");
   assertEquals(result.name, name);
@@ -31,7 +96,7 @@ Deno.test("elementNode: creates element with XmlName object", () => {
 });
 
 Deno.test("elementNode: creates element with attributes", () => {
-  const result = elementNode("TestElement", {
+  const result = TestComicInfo.elementNode("TestElement", {
     attributes: { id: "123", class: "test" },
   });
 
@@ -39,8 +104,8 @@ Deno.test("elementNode: creates element with attributes", () => {
 });
 
 Deno.test("elementNode: creates element with children", () => {
-  const child = elementNode("Child");
-  const result = elementNode("Parent", {
+  const child = TestComicInfo.elementNode("Child");
+  const result = TestComicInfo.elementNode("Parent", {
     children: [child],
   });
 
@@ -48,8 +113,8 @@ Deno.test("elementNode: creates element with children", () => {
 });
 
 Deno.test("elementNode: creates element with both attributes and children", () => {
-  const child = elementNode("Child");
-  const result = elementNode("Parent", {
+  const child = TestComicInfo.elementNode("Child");
+  const result = TestComicInfo.elementNode("Parent", {
     attributes: { id: "parent" },
     children: [child],
   });
@@ -63,17 +128,22 @@ Deno.test("elementNode: creates element with both attributes and children", () =
 // ============================================================================
 
 Deno.test("textNode: returns undefined for null value", () => {
-  const result = createTextNode("Test", null);
+  const result = TestComicInfo.textNode("Test", null);
   assert(result === undefined);
 });
 
 Deno.test("textNode: returns undefined for undefined value", () => {
-  const result = createTextNode("Test", undefined);
+  const result = TestComicInfo.textNode("Test", undefined);
+  assert(result === undefined);
+});
+
+Deno.test("textNode: returns undefined for empty array value", () => {
+  const result = TestComicInfo.textNode("Test", []);
   assert(result === undefined);
 });
 
 Deno.test("textNode: creates text element with string value", () => {
-  const result = createTextNode("Test", "hello");
+  const result = TestComicInfo.textNode("Test", "hello");
 
   assert(result !== undefined);
   assert(result.type === "element");
@@ -84,7 +154,7 @@ Deno.test("textNode: creates text element with string value", () => {
 });
 
 Deno.test("textNode: converts number to string", () => {
-  const result = createTextNode("Test", 42);
+  const result = TestComicInfo.textNode("Test", 42);
 
   assert(result !== undefined);
   const resultTextNode = result.children[0] as { text: string };
@@ -92,7 +162,7 @@ Deno.test("textNode: converts number to string", () => {
 });
 
 Deno.test("textNode: converts boolean to string", () => {
-  const result = createTextNode("Test", true);
+  const result = TestComicInfo.textNode("Test", true);
 
   assert(result !== undefined);
   const resultTextNode = result.children[0] as { text: string };
@@ -100,7 +170,7 @@ Deno.test("textNode: converts boolean to string", () => {
 });
 
 Deno.test("textNode: includes attributes", () => {
-  const result = createTextNode("Test", "value", {
+  const result = TestComicInfo.textNode("Test", "value", {
     attributes: { id: "test-id" },
   });
 
@@ -109,11 +179,11 @@ Deno.test("textNode: includes attributes", () => {
 });
 
 // ============================================================================
-// createXmlDocument tests
+// documentWrapper tests
 // ============================================================================
 
-Deno.test("createXmlDocument: creates document with declaration", () => {
-  const result = createXmlDocument("http://example.com/schema.xsd", []);
+Deno.test("documentWrapper: creates document with declaration", () => {
+  const result = TestComicInfo.documentWrapper([]);
 
   assert(result.declaration !== undefined);
   assertEquals(result.declaration.version, "1.0");
@@ -121,31 +191,26 @@ Deno.test("createXmlDocument: creates document with declaration", () => {
   assertEquals(result.declaration.type, "declaration");
 });
 
-Deno.test("createXmlDocument: creates root element with ComicInfo name", () => {
-  const result = createXmlDocument("http://example.com/schema.xsd", []);
+Deno.test("documentWrapper: creates root element with ComicInfo name", () => {
+  const result = TestComicInfo.documentWrapper([]);
 
   assert(result.root !== undefined);
   assertEquals(result.root.name, { raw: "ComicInfo", local: "ComicInfo" });
 });
 
-Deno.test("createXmlDocument: includes schema location in root attributes", () => {
-  const schemaUrl = "http://example.com/schema.xsd";
-  const result = createXmlDocument(schemaUrl, []);
+Deno.test("documentWrapper: includes attributes in root", () => {
+  const attributes = {
+    "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+    "xsi:noNamespaceSchemaLocation": "http://example.com/schema.xsd",
+  };
+  const result = TestComicInfo.documentWrapper([], { attributes });
 
-  assert(result.root.attributes !== undefined);
-  assertEquals(
-    result.root.attributes["xmlns:xsi"],
-    "http://www.w3.org/2001/XMLSchema-instance",
-  );
-  assertEquals(
-    result.root.attributes["xsi:noNamespaceSchemaLocation"],
-    schemaUrl,
-  );
+  assertEquals(result.root.attributes, attributes);
 });
 
-Deno.test("createXmlDocument: includes children in root", () => {
-  const child = elementNode("Child");
-  const result = createXmlDocument("http://example.com/schema.xsd", [child]);
+Deno.test("documentWrapper: includes children in root", () => {
+  const child = TestComicInfo.elementNode("Child");
+  const result = TestComicInfo.documentWrapper([child]);
 
   assertEquals(result.root.children, [child]);
 });
@@ -155,52 +220,19 @@ Deno.test("createXmlDocument: includes children in root", () => {
 // ============================================================================
 
 Deno.test("stringify: returns valid XML string", () => {
-  const result = stringify({ Title: "Test Comic" });
+  const result = new TestComicInfo({ Title: "Test Comic" })
+    .stringify();
 
-  const parsed = xmlParse(result);
+  const parsed = XML.parse(result);
 
-  assertEquals(parsed, {
-    declaration: {
-      type: "declaration",
-      version: "1.0",
-      line: 1,
-      column: 1,
-      offset: 0,
-      encoding: "utf-8",
-    },
-    root: {
-      type: "element",
-      name: { raw: "ComicInfo", local: "ComicInfo" },
-      attributes: {
-        "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
-        "xsi:noNamespaceSchemaLocation":
-          "https://github.com/anansi-project/comicinfo/raw/refs/heads/main/schema/v1.0/ComicInfo.xsd",
-      },
-      children: [
-        {
-          type: "element",
-          name: { raw: "Title", local: "Title" },
-          attributes: {},
-          children: [
-            {
-              type: "text",
-              text: "Test Comic",
-            },
-          ],
-        },
-      ],
-    },
-  });
-});
-
-Deno.test("stringify: includes input data as XML elements", () => {
-  const result = stringify({
-    Title: "Test Comic",
-    Series: "Test Series",
-  });
-
-  const parsed = xmlParse(result);
-
+  assert(parsed.declaration !== undefined);
+  assertEquals(parsed.declaration.type, "declaration");
+  assertEquals(parsed.root.name, { raw: "ComicInfo", local: "ComicInfo" });
+  assertEquals(
+    parsed.root.attributes["xmlns:xsi"],
+    "http://www.w3.org/2001/XMLSchema-instance",
+  );
+  assert("xsi:noNamespaceSchemaLocation" in parsed.root.attributes);
   assertEquals(parsed.root.children, [
     {
       type: "element",
@@ -213,27 +245,13 @@ Deno.test("stringify: includes input data as XML elements", () => {
         },
       ],
     },
-    {
-      type: "element",
-      name: { raw: "Series", local: "Series" },
-      attributes: {},
-      children: [
-        {
-          type: "text",
-          text: "Test Series",
-        },
-      ],
-    },
   ]);
 });
 
 Deno.test("stringify: converts numbers to strings", () => {
-  const result = stringify({
-    Year: 2024,
-    Count: 10,
-  });
+  const result = new TestComicInfo({ Year: 2024 }).stringify();
 
-  const parsed = xmlParse(result);
+  const parsed = XML.parse(result);
 
   assertEquals(parsed.root.children, [
     {
@@ -247,138 +265,245 @@ Deno.test("stringify: converts numbers to strings", () => {
         },
       ],
     },
-    {
-      type: "element",
-      name: { raw: "Count", local: "Count" },
-      attributes: {},
-      children: [
-        {
-          type: "text",
-          text: "10",
-        },
-      ],
-    },
   ]);
-});
-
-Deno.test("stringify: converts booleans to strings", () => {
-  const result = stringify({
-    BlackAndWhite: true,
-    Manga: false,
-  });
-
-  const parsed = xmlParse(result);
-
-  assertEquals(parsed.root.children, [
-    {
-      type: "element",
-      name: { raw: "BlackAndWhite", local: "BlackAndWhite" },
-      attributes: {},
-      children: [
-        {
-          type: "text",
-          text: "true",
-        },
-      ],
-    },
-    {
-      type: "element",
-      name: { raw: "Manga", local: "Manga" },
-      attributes: {},
-      children: [
-        {
-          type: "text",
-          text: "false",
-        },
-      ],
-    },
-  ]);
-});
-
-Deno.test("stringify: uses overrideParse for custom element handling", () => {
-  const result = stringify(
-    { CustomField: "value" },
-    {
-      overrideParse: {
-        CustomField: (val) => {
-          if (val === "value") {
-            return elementNode("CustomElement", {
-              children: [
-                { type: "text", text: "custom-value" } as const,
-              ],
-            });
-          }
-          return undefined;
-        },
-      },
-    },
-  );
-
-  const parsed = xmlParse(result);
-
-  assertEquals(parsed.root.children, [
-    {
-      type: "element",
-      name: { raw: "CustomElement", local: "CustomElement" },
-      attributes: {},
-      children: [
-        {
-          type: "text",
-          text: "custom-value",
-        },
-      ],
-    },
-  ]);
-});
-
-Deno.test("stringify: overrideParse can return undefined to skip field", () => {
-  const result = stringify(
-    { SkipField: "value" },
-    {
-      overrideParse: {
-        SkipField: () => undefined,
-      },
-    },
-  );
-
-  assert(!result.includes("SkipField"));
-});
-
-Deno.test("stringify: includes xmlns:xsi and xsi:noNamespaceSchemaLocation", () => {
-  const result = stringify({ Title: "Test" });
-
-  const parsed = xmlParse(result);
-
-  assertEquals(
-    parsed.root.attributes["xmlns:xsi"],
-    "http://www.w3.org/2001/XMLSchema-instance",
-  );
-  assert(
-    "xsi:noNamespaceSchemaLocation" in parsed.root.attributes,
-  );
-});
-
-Deno.test("stringify: handles empty input object", () => {
-  const result = stringify({});
-
-  const parsed = xmlParse(result);
-
-  assert(parsed.declaration !== undefined);
-  assertEquals(parsed.declaration.type, "declaration");
-  assertEquals(parsed.root.name, { raw: "ComicInfo", local: "ComicInfo" });
-  assertEquals(parsed.root.children, []);
 });
 
 Deno.test("stringify: handles special characters in values", () => {
-  const result = stringify({
-    Title: 'Test & <Comic> "Quotes"',
-  });
+  const result = new TestComicInfo({ Title: 'Test & <Comic> "Quotes"' })
+    .stringify();
 
-  const parsed = xmlParse(result);
+  const parsed = XML.parse(result);
   const titleElement = parsed.root.children[0] as XmlElement;
 
   assertEquals(
     (titleElement.children[0] as { text: string }).text,
     'Test & <Comic> "Quotes"',
   );
+});
+
+Deno.test("stringify: handles empty input object", () => {
+  const result = new TestComicInfo({}).stringify();
+
+  const parsed = XML.parse(result);
+
+  assert(parsed.declaration !== undefined);
+  assertEquals(parsed.root.name, { raw: "ComicInfo", local: "ComicInfo" });
+  assertEquals(parsed.root.children, []);
+});
+
+Deno.test("stringify: passes options to the XML stringifier", () => {
+  const data = {
+    Title: "Test",
+    Pages: [{ Image: 1 }, { Image: 2 }],
+  };
+  const pretty = new TestComicInfo(data).stringify({ indent: "  " });
+
+  assertEquals(
+    pretty,
+    `<?xml version="1.0" encoding="utf-8"?>
+<ComicInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://github.com/anansi-project/comicinfo/raw/refs/heads/main/schema/v1.0/ComicInfo.xsd">
+  <Title>Test</Title>
+  <Pages>
+    <Page Image="1"/>
+    <Page Image="2"/>
+  </Pages>
+</ComicInfo>`,
+  );
+});
+
+Deno.test("stringify: uses the sequenced order from the class", () => {
+  class OrderedComicInfo extends TestComicInfo {
+    protected static override COMIC_INFO_SEQUENCED_ORDER = ["Title", "Series"];
+  }
+
+  // The data is in reverse sequence order; the class order restores it.
+  const result = new OrderedComicInfo({ Series: "Test Series", Title: "Test" })
+    .stringify();
+
+  const parsed = XML.parse(result);
+
+  assertEquals(
+    parsed.root.children.map((child) => (child as XmlElement).name.local),
+    ["Title", "Series"],
+  );
+});
+
+Deno.test("stringify: uses the to-XML node overrides from the class", () => {
+  class CustomComicInfo extends TestComicInfo {
+    protected static override COMIC_INFO_TO_XML_NODE_FNS = {
+      Title: (val: unknown) =>
+        TestComicInfo.elementNode("CustomField", {
+          children: [
+            { type: "text", text: `custom-${val}` } as const,
+          ],
+        }),
+    };
+  }
+
+  const result = new CustomComicInfo({ Title: "Test" })
+    .stringify();
+
+  const parsed = XML.parse(result);
+
+  assertEquals(parsed.root.children, [
+    {
+      type: "element",
+      name: { raw: "CustomField", local: "CustomField" },
+      attributes: {},
+      children: [
+        {
+          type: "text",
+          text: "custom-Test",
+        },
+      ],
+    },
+  ]);
+});
+
+Deno.test("stringify: to-XML node overrides can return undefined to skip field", () => {
+  class SkippingComicInfo extends TestComicInfo {
+    protected static override COMIC_INFO_TO_XML_NODE_FNS = {
+      Title: () => undefined,
+    };
+  }
+
+  const result = new SkippingComicInfo({ Title: "Test" })
+    .stringify();
+
+  const parsed = XML.parse(result);
+
+  assertEquals(parsed.root.children, []);
+});
+
+// ============================================================================
+// parse tests
+// ============================================================================
+
+Deno.test("parse: returns ComicInfo instance with parsed text fields", () => {
+  const result = TestComicInfo.parse(
+    `<?xml version="1.0" encoding="utf-8"?><ComicInfo><Title>Test</Title><Series>Test Series</Series></ComicInfo>`,
+  );
+
+  assert(result instanceof TestComicInfo);
+  assertEquals(result.data, { Title: "Test", Series: "Test Series" });
+});
+
+Deno.test("parse: uses the parse node overrides from the class", () => {
+  class CustomParseComicInfo extends TestComicInfo {
+    protected static override COMIC_INFO_PARSE_XML_NODE_FNS = {
+      Year: TestComicInfo.parseIntNode,
+    };
+  }
+
+  const result = CustomParseComicInfo.parse(
+    `<?xml version="1.0" encoding="utf-8"?><ComicInfo><Year>2024</Year></ComicInfo>`,
+  );
+
+  assert(result instanceof CustomParseComicInfo);
+  assertEquals(result.data, { Year: 2024 });
+});
+
+Deno.test("parse: constructs instances of the called class", () => {
+  class MyComicInfo extends TestComicInfo {}
+
+  const result = MyComicInfo.parse(
+    `<?xml version="1.0" encoding="utf-8"?><ComicInfo><Title>Test</Title></ComicInfo>`,
+  );
+
+  assert(result instanceof MyComicInfo);
+});
+
+Deno.test("parse: throws on invalid XML", () => {
+  assertThrows(() => TestComicInfo.parse("not valid xml"));
+});
+
+Deno.test("parse: throws on XML not matching the XSD", () => {
+  assertThrows(
+    () =>
+      TestComicInfo.parse(
+        `<?xml version="1.0" encoding="utf-8"?><NotComicInfo><Title>Test</Title></NotComicInfo>`,
+      ),
+    Error,
+    "NotComicInfo",
+  );
+});
+
+// ============================================================================
+// parse helper tests
+// ============================================================================
+
+Deno.test("parseTextNode: returns name and text value", () => {
+  const input = TestComicInfo.elementNode("Title", {
+    children: [{ type: "text", text: "hello" }],
+  });
+
+  assertEquals(TestComicInfo.parseTextNode(input), {
+    name: "Title",
+    value: "hello",
+  });
+});
+
+Deno.test("parseTextNode: returns empty string for element without children", () => {
+  const input = TestComicInfo.elementNode("Title");
+
+  assertEquals(TestComicInfo.parseTextNode(input), {
+    name: "Title",
+    value: "",
+  });
+});
+
+Deno.test("parseTextNode: throws on non-text child", () => {
+  const input = TestComicInfo.elementNode("Title", {
+    children: [TestComicInfo.elementNode("Child")],
+  });
+
+  assertThrows(() => TestComicInfo.parseTextNode(input), TypeError);
+});
+
+Deno.test("parseIntNode: returns parsed integer", () => {
+  const input = TestComicInfo.elementNode("Year", {
+    children: [{ type: "text", text: "42" }],
+  });
+
+  assertEquals(TestComicInfo.parseIntNode(input), { name: "Year", value: 42 });
+});
+
+Deno.test("parseIntNode: throws on non-integer value", () => {
+  const input = TestComicInfo.elementNode("Year", {
+    children: [{ type: "text", text: "not a number" }],
+  });
+
+  assertThrows(() => TestComicInfo.parseIntNode(input), TypeError);
+});
+
+Deno.test("parseStringArrayNode: splits comma-separated values", () => {
+  const input = TestComicInfo.elementNode("Writer", {
+    children: [{ type: "text", text: "Dan Slott,John Romita" }],
+  });
+
+  assertEquals(TestComicInfo.parseStringArrayNode(input), {
+    name: "Writer",
+    value: ["Dan Slott", "John Romita"],
+  });
+});
+
+Deno.test("parseStringArrayNode: returns empty array for empty value", () => {
+  const input = TestComicInfo.elementNode("Writer", {
+    children: [{ type: "text", text: "" }],
+  });
+
+  assertEquals(TestComicInfo.parseStringArrayNode(input), {
+    name: "Writer",
+    value: [],
+  });
+});
+
+// ============================================================================
+// data accessor tests
+// ============================================================================
+
+Deno.test("data: returns the ComicInfo data", () => {
+  const comicInfo = new TestComicInfo({ Title: "Test" });
+
+  assertEquals(comicInfo.data, { Title: "Test" });
 });

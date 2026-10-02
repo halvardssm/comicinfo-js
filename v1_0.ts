@@ -1,17 +1,24 @@
 import { z } from "@zod/zod";
-import type { XmlNode } from "@std/xml";
+import { type XmlNode, XMLValidator } from "@stdext/xml";
 import {
-  elementNode,
-  type OverrideParseFn,
-  stringify as baseStringify,
-  type StringifyOptions as BaseStringifyOptions,
+  ComicInfo as BaseComicInfo,
+  type ComicInfoOptions as BaseComicInfoOptions,
+  type ParseXmlNodeFn,
+  type ToXmlNodeFn,
 } from "./utils.ts";
+import comicInfoXsd from "./xsd/1_0.xsd" with { type: "text" };
+
+const comicInfoValidator = new XMLValidator(comicInfoXsd);
+
+/**
+ * SCHEMAS
+ */
 
 /**
  * Type of a comic page.
  * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#type|Type}
  */
-export const ComicPageType = z.literal([
+export const ComicPageTypeSchema = z.literal([
   "FrontCover",
   "InnerCover",
   "Roundup",
@@ -29,13 +36,13 @@ export const ComicPageType = z.literal([
  * Type of a comic page.
  * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#type|Type}
  */
-export type ComicPageType = z.infer<typeof ComicPageType>;
+export type ComicPageTypeSchema = z.infer<typeof ComicPageTypeSchema>;
 
 /**
  * Describes each page of the book.
  * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#pages--comicpageinfo|Pages / ComicPageInfo}
  */
-export const ComicPageInfo = z.object({
+export const ComicPageInfoInputSchema = z.object({
   /**
    * Page number.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#image|Image}
@@ -45,7 +52,7 @@ export const ComicPageInfo = z.object({
    * Type of the page.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#type|Type}
    */
-  Type: ComicPageType.optional(),
+  Type: ComicPageTypeSchema.optional(),
   /**
    * Whether the page is a double spread.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#doublepage|DoublePage}
@@ -76,40 +83,43 @@ export const ComicPageInfo = z.object({
  * Describes each page of the book.
  * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#pages--comicpageinfo|Pages / ComicPageInfo}
  */
-export type ComicPageInfo = z.infer<typeof ComicPageInfo>;
+export type ComicPageInfoInputSchema = z.infer<typeof ComicPageInfoInputSchema>;
+
+/**
+ * A yes/no value. The XML value "Unknown" maps to undefined, meaning the value is unknown.
+ * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#blackandwhite|BlackAndWhite}
+ */
+export const YesNoSchema = z.literal(["Unknown", "No", "Yes"]).transform((v) =>
+  v === "Unknown" ? undefined : v
+);
 
 /**
  * A yes/no value.
  * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#blackandwhite|BlackAndWhite}
  */
-export const YesNo = z.literal(["Yes", "No"]);
-
-/**
- * A yes/no value.
- * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#blackandwhite|BlackAndWhite}
- */
-export type YesNo = z.infer<typeof YesNo>;
+export type YesNoSchema = z.infer<typeof YesNoSchema>;
 
 /**
  * A comma-separated array of strings.
  * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#creator-fields|Creator fields}
  */
-export const StringArray = z
-  .string()
-  .array()
-  .transform((s) => s.join(","));
+export const StringArraySchema = z
+  .union([z.string(), z.string().array()])
+  .transform((val) =>
+    typeof val === "string" ? (val === "" ? [] : val.split(",")) : val
+  );
 
 /**
  * A comma-separated array of strings.
  * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#creator-fields|Creator fields}
  */
-export type StringArray = z.infer<typeof StringArray>;
+export type StringArraySchema = z.infer<typeof StringArraySchema>;
 
 /**
  * The main ComicInfo schema.
  * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md|Schema documentation}
  */
-export const ComicInfo = z.object({
+export const ComicInfoSchema = z.object({
   /**
    * Title of the book.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#title|Title}
@@ -174,37 +184,37 @@ export const ComicInfo = z.object({
    * Person or organization responsible for creating the scenario.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#writer|Writer}
    */
-  Writer: StringArray.optional(),
+  Writer: StringArraySchema.optional(),
   /**
    * Person or organization responsible for drawing the art.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#penciller|Penciller}
    */
-  Penciller: StringArray.optional(),
+  Penciller: StringArraySchema.optional(),
   /**
    * Person or organization responsible for inking the pencil art.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#inker|Inker}
    */
-  Inker: StringArray.optional(),
+  Inker: StringArraySchema.optional(),
   /**
    * Person or organization responsible for applying color to drawings.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#colorist|Colorist}
    */
-  Colorist: StringArray.optional(),
+  Colorist: StringArraySchema.optional(),
   /**
    * Person or organization responsible for drawing text and speech bubbles.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#letterer|Letterer}
    */
-  Letterer: StringArray.optional(),
+  Letterer: StringArraySchema.optional(),
   /**
    * Person or organization responsible for drawing the cover art.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#coverartist|CoverArtist}
    */
-  CoverArtist: StringArray.optional(),
+  CoverArtist: StringArraySchema.optional(),
   /**
    * A person or organization contributing to a resource by revising or elucidating the content.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#editor|Editor}
    */
-  Editor: StringArray.optional(),
+  Editor: StringArraySchema.optional(),
   /**
    * A person or organization responsible for publishing, releasing, or issuing a resource.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#publisher|Publisher}
@@ -219,12 +229,12 @@ export const ComicInfo = z.object({
    * Genre of the book or series.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#genre|Genre}
    */
-  Genre: StringArray.optional(),
+  Genre: StringArraySchema.optional(),
   /**
    * A URL pointing to a reference website for the book.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#web|Web}
    */
-  Web: StringArray.optional(),
+  Web: StringArraySchema.optional(),
   /**
    * The number of pages in the book.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#pagecount|PageCount}
@@ -244,119 +254,212 @@ export const ComicInfo = z.object({
    * Whether the book is in black and white.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#blackandwhite|BlackAndWhite}
    */
-  BlackAndWhite: YesNo.optional(),
+  BlackAndWhite: YesNoSchema.optional(),
   /**
    * Whether the book is a manga.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#manga|Manga}
    */
-  Manga: YesNo.optional(),
+  Manga: YesNoSchema.optional(),
   /**
    * Describes each page of the book.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#pages--comicpageinfo|Pages / ComicPageInfo}
    */
-  Pages: ComicPageInfo.array().optional(),
+  Pages: ComicPageInfoInputSchema.array().optional(),
 });
 
 /**
  * The main ComicInfo type.
  * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md|Schema documentation}
  */
-export type ComicInfo = z.infer<typeof ComicInfo>;
+export type ComicInfoSchema = z.infer<typeof ComicInfoSchema>;
 
 /**
- * Order of the keys as the schema specifies a schema
+ * Input type of the main ComicInfo schema, allowing comma-separated strings for array fields.
+ * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md|Schema documentation}
  */
-export const COMIC_INFO_SEQUENCED_ORDER = [
-  "Title",
-  "Series",
-  "Number",
-  "Count",
-  "Volume",
-  "AlternateSeries",
-  "AlternateNumber",
-  "AlternateCount",
-  "Summary",
-  "Notes",
-  "Year",
-  "Month",
-  "Writer",
-  "Penciller",
-  "Inker",
-  "Colorist",
-  "Letterer",
-  "CoverArtist",
-  "Editor",
-  "Publisher",
-  "Imprint",
-  "Genre",
-  "Web",
-  "PageCount",
-  "LanguageISO",
-  "Format",
-  "BlackAndWhite",
-  "Manga",
-  "Pages",
-] as const;
+export type ComicInfoSchemaInput = z.input<typeof ComicInfoSchema>;
 
 /**
- * Options for stringifying ComicInfo to XML.
+ * CLASSES
  */
-export interface StringifyOptions<C = ComicInfo> extends BaseStringifyOptions {
+
+export class ComicInfo extends BaseComicInfo {
+  protected static override COMIC_INFO_SEQUENCED_ORDER: ReadonlyArray<
+    string
+  > = [
+    "Title",
+    "Series",
+    "Number",
+    "Count",
+    "Volume",
+    "AlternateSeries",
+    "AlternateNumber",
+    "AlternateCount",
+    "Summary",
+    "Notes",
+    "Year",
+    "Month",
+    "Writer",
+    "Penciller",
+    "Inker",
+    "Colorist",
+    "Letterer",
+    "CoverArtist",
+    "Editor",
+    "Publisher",
+    "Imprint",
+    "Genre",
+    "Web",
+    "PageCount",
+    "LanguageISO",
+    "Format",
+    "BlackAndWhite",
+    "Manga",
+    "Pages",
+  ] as const;
+
   /**
-   * Override parse functions for specific fields.
+   * Zod schema used to validate data.
    */
-  overrideParse?: Partial<Record<keyof C, OverrideParseFn | undefined>>;
-}
+  protected static override COMIC_INFO_DATA_SCHEMA:
+    BaseComicInfoOptions["dataSchema"] = ComicInfoSchema;
 
-/**
- * Stringifies ComicInfo to XML format.
- * @param input - The input to stringify.
- * @param options - Options for stringifying.
- * @returns The XML string.
- */
-export function stringify(
-  input: Record<string, unknown>,
-  options?: StringifyOptions,
-): string {
-  const combinedOptions: StringifyOptions = {
-    schema:
-      "https://github.com/anansi-project/comicinfo/raw/refs/heads/main/schema/v1.0/ComicInfo.xsd",
-    order: COMIC_INFO_SEQUENCED_ORDER,
-    validate: ComicInfo,
-    ...options,
-    overrideParse: {
-      Pages: (value) => {
-        if (value !== undefined) {
-          if (!Array.isArray(value)) {
-            throw new TypeError("Value of Pages must be an array");
-          }
+  /**
+   * Validator used to validate XML against the XSD.
+   */
+  protected static override COMIC_INFO_VALIDATOR = comicInfoValidator;
 
-          const pages: XmlNode[] = [];
+  constructor(data: ComicInfoSchemaInput) {
+    super(data);
+  }
 
-          for (const page of value) {
-            pages.push(
-              elementNode("Page", {
-                attributes: (
-                  Object.keys(page) as Array<keyof typeof page>
-                ).reduce(
-                  (acc, curr) => {
-                    if (typeof curr === "string" && page[curr] != null) {
-                      acc[curr] = page[curr].toString();
-                    }
-                    return acc;
-                  },
-                  {} as Record<string, string>,
-                ),
-              }),
+  /**
+   * HELPERS
+   */
+
+  protected static _parsePagesNode: ParseXmlNodeFn<ComicPageInfoInputSchema[]> =
+    (
+      input,
+    ) => {
+      if (input.type !== "element" || input.name.local !== "Pages") {
+        throw new TypeError(
+          `Input is not a Pages XMLElement, found ${input.type}`,
+        );
+      }
+
+      const pages: ComicPageInfoInputSchema[] = [];
+
+      for (const child of input.children) {
+        if (child.type === "element" && child.name.local === "Page") {
+          if (child.attributes.Image === undefined) {
+            throw new TypeError(
+              "Page element is missing the required Image attribute (nil pages are not supported)",
             );
           }
-          return elementNode("Pages", { children: pages });
+
+          const pageData: Record<string, unknown> = {
+            Image: parseInt(child.attributes.Image),
+          };
+
+          if (child.attributes.Type !== undefined) {
+            const types = child.attributes.Type.trim().split(/\s+/);
+            if (types.length > 1) {
+              throw new TypeError(
+                `Multiple page types are not supported, found "${child.attributes.Type}"`,
+              );
+            }
+            pageData.Type = types[0];
+          }
+          if (child.attributes.DoublePage !== undefined) {
+            pageData.DoublePage = child.attributes.DoublePage === "true" ||
+              child.attributes.DoublePage === "1";
+          }
+          if (child.attributes.ImageSize !== undefined) {
+            pageData.ImageSize = parseInt(child.attributes.ImageSize);
+          }
+          if (child.attributes.Key !== undefined) {
+            pageData.Key = child.attributes.Key;
+          }
+          if (child.attributes.ImageWidth !== undefined) {
+            pageData.ImageWidth = parseInt(child.attributes.ImageWidth);
+          }
+          if (child.attributes.ImageHeight !== undefined) {
+            pageData.ImageHeight = parseInt(child.attributes.ImageHeight);
+          }
+
+          const page = ComicPageInfoInputSchema.parse(pageData);
+          pages.push(page);
         }
-        return undefined;
-      },
-      ...options?.overrideParse,
-    },
+      }
+
+      return { name: input.name.local, value: pages };
+    };
+
+  protected static _toPagesNode: ToXmlNodeFn = (
+    input,
+  ) => {
+    if (input !== undefined) {
+      if (!Array.isArray(input)) {
+        throw new TypeError("Value of Pages must be an array");
+      }
+      if (input.length === 0) return undefined;
+
+      const pages: XmlNode[] = [];
+
+      for (const page of input) {
+        pages.push(
+          ComicInfo._elementNode("Page", {
+            attributes: (
+              Object.keys(page) as Array<keyof typeof page>
+            ).reduce(
+              (acc, curr) => {
+                if (typeof curr === "string" && page[curr] != null) {
+                  acc[curr] = page[curr].toString();
+                }
+                return acc;
+              },
+              {} as Record<string, string>,
+            ),
+          }),
+        );
+      }
+      return ComicInfo._elementNode("Pages", { children: pages });
+    }
+    return undefined;
   };
 
-  return baseStringify(input, combinedOptions);
+  /**
+   * Functions used to convert specific data fields to XML nodes.
+   */
+  protected static override COMIC_INFO_TO_XML_NODE_FNS = {
+    Pages: this._toPagesNode,
+  };
+
+  /**
+   * Functions used to parse specific XML elements.
+   */
+  protected static override COMIC_INFO_PARSE_XML_NODE_FNS = {
+    Count: this._parseIntNode,
+    Volume: this._parseIntNode,
+    AlternateCount: this._parseIntNode,
+    Year: this._parseIntNode,
+    Month: this._parseIntNode,
+    PageCount: this._parseIntNode,
+    Writer: this._parseStringArrayNode,
+    Penciller: this._parseStringArrayNode,
+    Inker: this._parseStringArrayNode,
+    Colorist: this._parseStringArrayNode,
+    Letterer: this._parseStringArrayNode,
+    CoverArtist: this._parseStringArrayNode,
+    Editor: this._parseStringArrayNode,
+    Genre: this._parseStringArrayNode,
+    Web: this._parseStringArrayNode,
+    Pages: this._parsePagesNode,
+  };
 }
+
+/**
+ * TYPES
+ */
+
+export type { StringifyOptions } from "./utils.ts";

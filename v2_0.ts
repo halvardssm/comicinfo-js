@@ -1,33 +1,67 @@
+import { z } from "@zod/zod";
+import { XMLValidator } from "@stdext/xml";
 import {
   ComicInfo as V1ComicInfo,
-  ComicPageInfo,
-  ComicPageType,
-  StringArray,
-  stringify as v1Stringify,
-  type StringifyOptions as V1StringifyOptions,
-  YesNo,
+  ComicInfoSchema as V1ComicInfoSchema,
+  type ComicInfoSchemaInput as V1ComicInfoSchemaInput,
+  ComicPageInfoInputSchema as V1ComicPageInfoInputSchema,
+  ComicPageTypeSchema,
+  StringArraySchema,
+  type StringifyOptions,
+  YesNoSchema,
 } from "./v1_0.ts";
-import { z } from "@zod/zod";
+import type {
+  ComicInfoOptions as BaseComicInfoOptions,
+  ParseXmlNodeFn,
+} from "./utils.ts";
+import comicInfoXsd from "./xsd/2_0.xsd" with { type: "text" };
 
-export { ComicPageInfo, ComicPageType, StringArray, YesNo };
+const comicInfoValidator = new XMLValidator(comicInfoXsd);
+
+/**
+ * SCHEMAS
+ */
+
+/**
+ * Describes each page of the book, extending the v1.0 page with a bookmark.
+ * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#pages--comicpageinfo|Pages / ComicPageInfo}
+ */
+export const ComicPageInfoInputSchema = V1ComicPageInfoInputSchema.extend({
+  /**
+   * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#pages--comicpageinfo|Pages / ComicPageInfo}
+   */
+  Bookmark: z.string().optional(),
+});
+
+/**
+ * Describes each page of the book, extending the v1.0 page with a bookmark.
+ * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#pages--comicpageinfo|Pages / ComicPageInfo}
+ */
+export type ComicPageInfoInputSchema = z.infer<typeof ComicPageInfoInputSchema>;
+
+/**
+ * Whether the book is a manga, with optional reading direction. The XML value "Unknown" maps to undefined, meaning the value is unknown.
+ * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#manga|Manga}
+ */
+export const MangaSchema = z.literal([
+  "Unknown",
+  "No",
+  "Yes",
+  "YesAndRightToLeft",
+]).transform((v) => v === "Unknown" ? undefined : v);
 
 /**
  * Whether the book is a manga, with optional reading direction.
  * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#manga|Manga}
  */
-export const ComicInfoManga = z.union([YesNo, z.literal("YesAndRightToLeft")]);
+export type MangaSchema = z.infer<typeof MangaSchema>;
 
 /**
- * Whether the book is a manga, with optional reading direction.
- * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#manga|Manga}
- */
-export type ComicInfoManga = z.infer<typeof ComicInfoManga>;
-
-/**
- * Age rating of the book.
+ * Age rating of the book. The XML value "Unknown" maps to undefined, meaning the value is unknown.
  * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#agerating|AgeRating}
  */
-export const AgeRating = z.literal([
+export const AgeRatingSchema = z.literal([
+  "Unknown",
   "Adults Only 18+",
   "Early Childhood",
   "Everyone",
@@ -42,39 +76,44 @@ export const AgeRating = z.literal([
   "Rating Pending",
   "Teen",
   "X18+",
-]);
+]).transform((v) => v === "Unknown" ? undefined : v);
 
 /**
  * Age rating of the book.
  * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#agerating|AgeRating}
  */
-export type AgeRating = z.infer<typeof AgeRating>;
+export type AgeRatingSchema = z.infer<typeof AgeRatingSchema>;
 
 /**
  * The main ComicInfo schema for v2.0, extending v1.0 with additional fields.
  * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md|Schema documentation}
  */
-export const ComicInfo = V1ComicInfo.extend({
+export const ComicInfoSchema = V1ComicInfoSchema.extend({
+  /**
+   * Release day of the book.
+   * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#year--month--day|Year / Month / Day}
+   */
+  Day: z.number().optional(),
   /**
    * Whether the book is a manga, with optional reading direction.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#manga|Manga}
    */
-  Manga: ComicInfoManga.optional(),
+  Manga: MangaSchema.optional(),
   /**
    * Characters present in the book.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#characters|Characters}
    */
-  Characters: StringArray.optional(),
+  Characters: StringArraySchema.optional(),
   /**
    * Teams present in the book.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#teams|Teams}
    */
-  Teams: StringArray.optional(),
+  Teams: StringArraySchema.optional(),
   /**
    * Locations mentioned in the book.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#locations|Locations}
    */
-  Locations: StringArray.optional(),
+  Locations: StringArraySchema.optional(),
   /**
    * A free text field, usually used to store information about who scanned the book.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#scaninformation|ScanInformation}
@@ -84,22 +123,22 @@ export const ComicInfo = V1ComicInfo.extend({
    * The story arc that books belong to.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#storyarc|StoryArc}
    */
-  StoryArc: StringArray.optional(),
+  StoryArc: StringArraySchema.optional(),
   /**
    * A group or collection the series belongs to.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#seriesgroup|SeriesGroup}
    */
-  SeriesGroup: StringArray.optional(),
+  SeriesGroup: StringArraySchema.optional(),
   /**
    * Age rating of the book.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#agerating|AgeRating}
    */
-  AgeRating: AgeRating.optional(),
+  AgeRating: AgeRatingSchema.optional(),
   /**
-   * Release day of the book.
-   * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#year--month--day|Year / Month / Day}
+   * Community rating of the book, between 0 and 5 with at most 2 fraction digits.
+   * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#communityrating|CommunityRating}
    */
-  Day: z.number().optional(),
+  CommunityRating: z.number().optional(),
   /**
    * Main character or team mentioned in the book.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#maincharacterorteam|MainCharacterOrTeam}
@@ -110,83 +149,155 @@ export const ComicInfo = V1ComicInfo.extend({
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#review|Review}
    */
   Review: z.string().optional(),
+  /**
+   * Describes each page of the book, extending the v1.0 page with a bookmark.
+   * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#pages--comicpageinfo|Pages / ComicPageInfo}
+   */
+  Pages: ComicPageInfoInputSchema.array().optional(),
 });
 
 /**
  * The main ComicInfo type for v2.0, extending v1.0 with additional fields.
  * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md|Schema documentation}
  */
-export type ComicInfo = z.infer<typeof ComicInfo>;
+export type ComicInfoSchema = z.infer<typeof ComicInfoSchema>;
 
 /**
- * Order of the keys as the schema specifies a schema
+ * Input type of the main ComicInfo schema for v2.0, allowing comma-separated strings for array fields.
+ * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md|Schema documentation}
  */
-export const COMIC_INFO_SEQUENCED_ORDER = [
-  "Title",
-  "Series",
-  "Number",
-  "Count",
-  "Volume",
-  "AlternateSeries",
-  "AlternateNumber",
-  "AlternateCount",
-  "Summary",
-  "Notes",
-  "Year",
-  "Month",
-  "Day",
-  "Writer",
-  "Penciller",
-  "Inker",
-  "Colorist",
-  "Letterer",
-  "CoverArtist",
-  "Editor",
-  "Publisher",
-  "Imprint",
-  "Genre",
-  "Web",
-  "PageCount",
-  "LanguageISO",
-  "Format",
-  "BlackAndWhite",
-  "Manga",
-  "Characters",
-  "Teams",
-  "Locations",
-  "ScanInformation",
-  "StoryArc",
-  "SeriesGroup",
-  "AgeRating",
-  "Pages",
-  "CommunityRating",
-  "MainCharacterOrTeam",
-  "Review",
-] as const;
+export type ComicInfoSchemaInput = z.input<typeof ComicInfoSchema>;
+
+export {
+  ComicPageInfoInputSchema as ComicPageInfo,
+  ComicPageTypeSchema as ComicPageType,
+  StringArraySchema as StringArray,
+  YesNoSchema as YesNo,
+};
 
 /**
- * Options for stringifying ComicInfo to XML.
+ * CLASSES
  */
-export interface StringifyOptions<C = ComicInfo>
-  extends V1StringifyOptions<C> {}
 
-/**
- * Stringifies ComicInfo to XML format.
- * @param input - The input to stringify.
- * @param options - Options for stringifying.
- * @returns The XML string.
- */
-export function stringify(
-  input: Record<string, unknown>,
-  options?: StringifyOptions,
-): string {
-  const combinedOptions: StringifyOptions = {
-    schema:
-      "https://github.com/anansi-project/comicinfo/raw/refs/heads/main/schema/v2.0/ComicInfo.xsd",
-    order: COMIC_INFO_SEQUENCED_ORDER,
-    validate: ComicInfo,
-    ...options,
+export class ComicInfo extends V1ComicInfo {
+  /**
+   * Location of the XSD advertised by the generated XML.
+   */
+  protected static override COMIC_INFO_SCHEMA_LOCATION =
+    "https://github.com/anansi-project/comicinfo/raw/refs/heads/main/schema/v2.0/ComicInfo.xsd";
+
+  protected static override COMIC_INFO_SEQUENCED_ORDER: ReadonlyArray<
+    string
+  > = [
+    "Title",
+    "Series",
+    "Number",
+    "Count",
+    "Volume",
+    "AlternateSeries",
+    "AlternateNumber",
+    "AlternateCount",
+    "Summary",
+    "Notes",
+    "Year",
+    "Month",
+    "Day",
+    "Writer",
+    "Penciller",
+    "Inker",
+    "Colorist",
+    "Letterer",
+    "CoverArtist",
+    "Editor",
+    "Publisher",
+    "Imprint",
+    "Genre",
+    "Web",
+    "PageCount",
+    "LanguageISO",
+    "Format",
+    "BlackAndWhite",
+    "Manga",
+    "Characters",
+    "Teams",
+    "Locations",
+    "ScanInformation",
+    "StoryArc",
+    "SeriesGroup",
+    "AgeRating",
+    "Pages",
+    "CommunityRating",
+    "MainCharacterOrTeam",
+    "Review",
+  ] as const;
+
+  /**
+   * Zod schema used to validate data.
+   */
+  protected static override COMIC_INFO_DATA_SCHEMA:
+    BaseComicInfoOptions["dataSchema"] = ComicInfoSchema;
+
+  /**
+   * Validator used to validate XML against the XSD.
+   */
+  protected static override COMIC_INFO_VALIDATOR = comicInfoValidator;
+
+  constructor(data: ComicInfoSchemaInput) {
+    // The v1.0 constructor narrows the input type; the v2.0 input is a
+    // superset of it and is validated by the v2.0 schema.
+    super(data as V1ComicInfoSchemaInput);
+  }
+
+  /**
+   * HELPERS
+   */
+
+  protected static override _parsePagesNode: ParseXmlNodeFn<
+    ComicPageInfoInputSchema[]
+  > = (input) => {
+    if (input.type !== "element" || input.name.local !== "Pages") {
+      throw new TypeError(
+        `Input is not a Pages XMLElement, found ${input.type}`,
+      );
+    }
+
+    const { name, value } = V1ComicInfo._parsePagesNode(input);
+
+    // The v1.0 parser produces one page per Page element, so indexes align.
+    const pages: ComicPageInfoInputSchema[] = [];
+    let index = 0;
+    for (const child of input.children) {
+      if (child.type === "element" && child.name.local === "Page") {
+        pages.push(
+          child.attributes.Bookmark !== undefined
+            ? { ...value[index], Bookmark: child.attributes.Bookmark }
+            : value[index],
+        );
+        index++;
+      }
+    }
+
+    return { name, value: pages };
   };
 
-  return v1Stringify(input, combinedOptions);
+  /**
+   * Functions used to parse specific XML elements.
+   */
+  protected static override COMIC_INFO_PARSE_XML_NODE_FNS = {
+    ...V1ComicInfo.COMIC_INFO_PARSE_XML_NODE_FNS,
+    Day: this._parseIntNode,
+    Characters: this._parseStringArrayNode,
+    Teams: this._parseStringArrayNode,
+    Locations: this._parseStringArrayNode,
+    StoryArc: this._parseStringArrayNode,
+    SeriesGroup: this._parseStringArrayNode,
+    CommunityRating: this._parseFloatNode,
+    Pages: this._parsePagesNode,
+  };
 }
+
+/**
+ * TYPES
+ */
+
+export type { StringifyOptions };

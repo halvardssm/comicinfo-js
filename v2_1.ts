@@ -1,30 +1,25 @@
 import { z } from "@zod/zod";
+import { XMLValidator } from "@stdext/xml";
 import {
-  AgeRating,
   ComicInfo as V2ComicInfo,
-  ComicInfoManga,
-  ComicPageInfo,
-  ComicPageType,
+  ComicInfoSchema as V2ComicInfoSchema,
   StringArray,
-  stringify as v2Stringify,
-  type StringifyOptions as V2StringifyOptions,
-  YesNo,
+  type StringifyOptions,
 } from "./v2_0.ts";
+import type { ComicInfoOptions as BaseComicInfoOptions } from "./utils.ts";
+import comicInfoXsd from "./xsd/2_1.xsd" with { type: "text" };
 
-export {
-  AgeRating,
-  ComicInfoManga,
-  ComicPageInfo,
-  ComicPageType,
-  StringArray,
-  YesNo,
-};
+const comicInfoValidator = new XMLValidator(comicInfoXsd);
+
+/**
+ * SCHEMAS
+ */
 
 /**
  * The main ComicInfo schema for v2.1, extending v2.0 with additional fields.
  * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md|Schema documentation}
  */
-export const ComicInfo = V2ComicInfo.extend({
+export const ComicInfoSchema = V2ComicInfoSchema.extend({
   /**
    * A person or organization who renders a text from one language into another.
    * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#translator|Translator}
@@ -51,81 +46,109 @@ export const ComicInfo = V2ComicInfo.extend({
  * The main ComicInfo type for v2.1, extending v2.0 with additional fields.
  * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md|Schema documentation}
  */
-export type ComicInfo = z.infer<typeof ComicInfo>;
+export type ComicInfoSchema = z.infer<typeof ComicInfoSchema>;
 
 /**
- * Order of the keys as the schema specifies a schema
+ * Input type of the main ComicInfo schema for v2.1, allowing comma-separated strings for array fields.
+ * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md|Schema documentation}
  */
-export const COMIC_INFO_SEQUENCED_ORDER = [
-  "Title",
-  "Series",
-  "Number",
-  "Count",
-  "Volume",
-  "AlternateSeries",
-  "AlternateNumber",
-  "AlternateCount",
-  "Summary",
-  "Notes",
-  "Year",
-  "Month",
-  "Day",
-  "Writer",
-  "Penciller",
-  "Inker",
-  "Colorist",
-  "Letterer",
-  "CoverArtist",
-  "Editor",
-  "Translator",
-  "Publisher",
-  "Imprint",
-  "Genre",
-  "Tags",
-  "Web",
-  "PageCount",
-  "LanguageISO",
-  "Format",
-  "BlackAndWhite",
-  "Manga",
-  "Characters",
-  "Teams",
-  "Locations",
-  "ScanInformation",
-  "StoryArc",
-  "StoryArcNumber",
-  "SeriesGroup",
-  "AgeRating",
-  "Pages",
-  "CommunityRating",
-  "MainCharacterOrTeam",
-  "Review",
-  "GTIN",
-] as const;
+export type ComicInfoSchemaInput = z.input<typeof ComicInfoSchema>;
+
+export {
+  AgeRatingSchema,
+  ComicPageInfo,
+  ComicPageType,
+  MangaSchema,
+  StringArray,
+  YesNo,
+} from "./v2_0.ts";
 
 /**
- * Options for stringifying ComicInfo to XML.
+ * CLASSES
  */
-export interface StringifyOptions<C = ComicInfo>
-  extends V2StringifyOptions<C> {}
 
-/**
- * Stringifies ComicInfo to XML format.
- * @param input - The input to stringify.
- * @param options - Options for stringifying.
- * @returns The XML string.
- */
-export function stringify(
-  input: Record<string, unknown>,
-  options?: StringifyOptions,
-): string {
-  const combinedOptions: StringifyOptions = {
-    schema:
-      "https://github.com/anansi-project/comicinfo/raw/refs/heads/main/drafts/v2.1/ComicInfo.xsd",
-    order: COMIC_INFO_SEQUENCED_ORDER,
-    validate: ComicInfo,
-    ...options,
+export class ComicInfo extends V2ComicInfo {
+  /**
+   * Location of the XSD advertised by the generated XML.
+   */
+  protected static override COMIC_INFO_SCHEMA_LOCATION =
+    "https://github.com/anansi-project/comicinfo/raw/refs/heads/main/drafts/v2.1/ComicInfo.xsd";
+
+  protected static override COMIC_INFO_SEQUENCED_ORDER = [
+    "Title",
+    "Series",
+    "Number",
+    "Count",
+    "Volume",
+    "AlternateSeries",
+    "AlternateNumber",
+    "AlternateCount",
+    "Summary",
+    "Notes",
+    "Year",
+    "Month",
+    "Day",
+    "Writer",
+    "Penciller",
+    "Inker",
+    "Colorist",
+    "Letterer",
+    "CoverArtist",
+    "Editor",
+    "Translator",
+    "Publisher",
+    "Imprint",
+    "Genre",
+    "Tags",
+    "Web",
+    "PageCount",
+    "LanguageISO",
+    "Format",
+    "BlackAndWhite",
+    "Manga",
+    "Characters",
+    "Teams",
+    "Locations",
+    "ScanInformation",
+    "StoryArc",
+    "StoryArcNumber",
+    "SeriesGroup",
+    "AgeRating",
+    "Pages",
+    "CommunityRating",
+    "MainCharacterOrTeam",
+    "Review",
+    "GTIN",
+  ] as const;
+
+  /**
+   * Zod schema used to validate data.
+   */
+  protected static override COMIC_INFO_DATA_SCHEMA:
+    BaseComicInfoOptions["dataSchema"] = ComicInfoSchema;
+
+  /**
+   * Validator used to validate XML against the XSD.
+   */
+  protected static override COMIC_INFO_VALIDATOR = comicInfoValidator;
+
+  constructor(data: ComicInfoSchemaInput) {
+    super(data);
+  }
+
+  /**
+   * Functions used to parse specific XML elements.
+   */
+  protected static override COMIC_INFO_PARSE_XML_NODE_FNS = {
+    ...V2ComicInfo.COMIC_INFO_PARSE_XML_NODE_FNS,
+    Translator: this._parseStringArrayNode,
+    Tags: this._parseStringArrayNode,
+    StoryArcNumber: this._parseStringArrayNode,
   };
-
-  return v2Stringify(input, combinedOptions);
 }
+
+/**
+ * TYPES
+ */
+
+export type { StringifyOptions };
