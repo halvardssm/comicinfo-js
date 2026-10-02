@@ -58,7 +58,8 @@ declared before the class.
 
 The XSD files in `xsd/` are the specification. The Zod schemas, sequenced order,
 and parse registries must match them exactly (field set, order, types). When
-changing schema code, verify the XSD against the official anansi schema first. Official sources:
+changing schema code, verify the XSD against the official anansi schema first.
+Official sources:
 
 - https://github.com/anansi-project/comicinfo/blob/main/schema/v1.0/ComicInfo.xsd
 - https://github.com/anansi-project/comicinfo/blob/main/schema/v2.0/ComicInfo.xsd
