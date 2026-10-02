@@ -1,3 +1,13 @@
+/**
+ * ComicInfo for specification version v2.1 (draft).
+ *
+ * Extends the v2.0 module with the v2.1 fields — `Translator`, `Tags`,
+ * `StoryArcNumber`, and `GTIN` — and defines the v2.1 `ComicInfo` class.
+ * This is the latest specification version, and it is also what the package
+ * root exports.
+ *
+ * @module
+ */
 import { z } from "@zod/zod";
 import { XMLValidator } from "@stdext/xml";
 import {

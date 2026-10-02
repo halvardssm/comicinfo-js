@@ -1,3 +1,14 @@
+/**
+ * ComicInfo for specification version v2.0.
+ *
+ * Extends the v1.0 module with the v2.0 fields — `Day`, `Characters`, `Teams`,
+ * `Locations`, `ScanInformation`, `StoryArc`, `SeriesGroup`, `AgeRating`,
+ * `CommunityRating`, `MainCharacterOrTeam`, `Review`, the direction-aware
+ * `MangaSchema`, and the `Bookmark` page attribute — and defines the v2.0
+ * `ComicInfo` class. The shared v1.0 schemas are re-exported.
+ *
+ * @module
+ */
 import { z } from "@zod/zod";
 import { XMLValidator } from "@stdext/xml";
 import {

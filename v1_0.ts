@@ -1,3 +1,14 @@
+/**
+ * ComicInfo for specification version v1.0.
+ *
+ * Defines the v1.0 Zod schemas — the main `ComicInfoSchema` with its input and
+ * output types, the page schemas (`ComicPageInfoInputSchema`,
+ * `ComicPageTypeSchema`), and the shared `YesNoSchema` and `StringArraySchema`
+ * — and the v1.0 `ComicInfo` class for parsing, creating, and stringifying
+ * ComicInfo.xml files.
+ *
+ * @module
+ */
 import { z } from "@zod/zod";
 import { type XmlNode, XMLValidator } from "@stdext/xml";
 import {
