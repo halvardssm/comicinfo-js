@@ -1,4 +1,4 @@
-import { z } from "@zod/zod";
+import { unknown, z } from "@zod/zod";
 import { type XmlNode, XMLValidator } from "@stdext/xml";
 import {
   ComicInfo as BaseComicInfo,
@@ -9,6 +9,8 @@ import {
   type ToXmlNodeFn,
 } from "./utils.ts";
 import comicInfoXsd from "./xsd/1_0.xsd" with { type: "text" };
+
+const comicInfoValidator = new XMLValidator(comicInfoXsd);
 
 /**
  * SCHEMAS
@@ -86,59 +88,12 @@ export const ComicPageInfoInputSchema = z.object({
 export type ComicPageInfoInputSchema = z.infer<typeof ComicPageInfoInputSchema>;
 
 /**
- * Describes each page of the book.
- * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#pages--comicpageinfo|Pages / ComicPageInfo}
- */
-export const ComicPageInfoOutputSchema = z.object({
-  /**
-   * Page number.
-   * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#image|Image}
-   */
-  Image: z.number(),
-  /**
-   * Type of the page.
-   * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#type|Type}
-   */
-  Type: ComicPageTypeSchema.optional(),
-  /**
-   * Whether the page is a double spread.
-   * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#doublepage|DoublePage}
-   */
-  DoublePage: z.string().optional(),
-  /**
-   * File size of the image, supposedly in bytes.
-   * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#imagesize|ImageSize}
-   */
-  ImageSize: z.string().optional(),
-  /**
-   * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#key|Key}
-   */
-  Key: z.string().optional(),
-  /**
-   * Width of the image in pixels.
-   * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#imagewidth--imageheight|ImageWidth / ImageHeight}
-   */
-  ImageWidth: z.string().optional(),
-  /**
-   * Height of the image in pixels.
-   * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#imagewidth--imageheight|ImageWidth / ImageHeight}
-   */
-  ImageHeight: z.string().optional(),
-});
-
-/**
- * Describes each page of the book.
- * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#pages--comicpageinfo|Pages / ComicPageInfo}
- */
-export type ComicPageInfoOutputSchema = z.infer<
-  typeof ComicPageInfoOutputSchema
->;
-
-/**
  * A yes/no value.
  * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#blackandwhite|BlackAndWhite}
  */
-export const YesNoSchema = z.literal(["Yes", "No"]);
+export const YesNoSchema = z.literal(["Unknown", "No", "Yes"]).transform((v) =>
+  v === "Unknown" ? unknown : v
+);
 
 /**
  * A yes/no value.
@@ -151,12 +106,10 @@ export type YesNoSchema = z.infer<typeof YesNoSchema>;
  * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#creator-fields|Creator fields}
  */
 export const StringArraySchema = z
-  .preprocess((val) => {
-    if (typeof val === "string") {
-      return val.split(",");
-    }
-    return val;
-  }, z.string().array());
+  .union([z.string(), z.string().array()])
+  .transform((val) =>
+    typeof val === "string" ? (val === "" ? [] : val.split(",")) : val
+  );
 
 /**
  * A comma-separated array of strings.
@@ -323,43 +276,10 @@ export const ComicInfoSchema = z.object({
 export type ComicInfoSchema = z.infer<typeof ComicInfoSchema>;
 
 /**
- * CONSTS
+ * Input type of the main ComicInfo schema, allowing comma-separated strings for array fields.
+ * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md|Schema documentation}
  */
-
-/**
- * Order of the keys as the schema specifies a schema
- */
-export const COMIC_INFO_SEQUENCED_ORDER = [
-  "Title",
-  "Series",
-  "Number",
-  "Count",
-  "Volume",
-  "AlternateSeries",
-  "AlternateNumber",
-  "AlternateCount",
-  "Summary",
-  "Notes",
-  "Year",
-  "Month",
-  "Writer",
-  "Penciller",
-  "Inker",
-  "Colorist",
-  "Letterer",
-  "CoverArtist",
-  "Editor",
-  "Publisher",
-  "Imprint",
-  "Genre",
-  "Web",
-  "PageCount",
-  "LanguageISO",
-  "Format",
-  "BlackAndWhite",
-  "Manga",
-  "Pages",
-] as const;
+export type ComicInfoSchemaInput = z.input<typeof ComicInfoSchema>;
 
 /**
  * CLASSES
@@ -398,10 +318,10 @@ export class ComicInfo extends BaseComicInfo {
     "Pages",
   ] as const;
 
-  constructor(data: ComicInfoSchema, options?: ComicInfoOptions) {
+  constructor(data: ComicInfoSchemaInput, options?: ComicInfoOptions) {
     const combinedOptions: BaseComicInfoOptions = {
       dataSchema: ComicInfoSchema,
-      comicInfoValidator: new XMLValidator(comicInfoXsd),
+      comicInfoValidator,
       ...options,
     };
     super(data, combinedOptions);
@@ -409,7 +329,7 @@ export class ComicInfo extends BaseComicInfo {
 
   override stringify(options?: StringifyOptions): string {
     const combinedOptions: StringifyOptions = {
-      order: COMIC_INFO_SEQUENCED_ORDER,
+      order: ComicInfo.COMIC_INFO_SEQUENCED_ORDER,
       ...options,
       overrideToXmlNode: {
         Pages: ComicInfo._toPagesNode,
@@ -422,8 +342,8 @@ export class ComicInfo extends BaseComicInfo {
 
   static override parse(data: string, options: ParseOptions): ComicInfo {
     const combinedOptions: ParseOptions = {
-      ...options,
       ComicInfoClass: ComicInfo,
+      ...options,
       overrideParseXmlNode: {
         Count: this._parseIntNode,
         Volume: this._parseIntNode,
@@ -465,21 +385,29 @@ export class ComicInfo extends BaseComicInfo {
       const pages: ComicPageInfoInputSchema[] = [];
 
       for (const child of input.children) {
-        if (
-          child.type === "element" && child.name.local === "Page" &&
-          child.attributes.Image !== undefined
-        ) {
+        if (child.type === "element" && child.name.local === "Page") {
+          if (child.attributes.Image === undefined) {
+            throw new TypeError(
+              "Page element is missing the required Image attribute (nil pages are not supported)",
+            );
+          }
+
           const pageData: Record<string, unknown> = {
             Image: parseInt(child.attributes.Image),
           };
 
           if (child.attributes.Type !== undefined) {
-            pageData.Type = child.attributes.Type;
+            const types = child.attributes.Type.trim().split(/\s+/);
+            if (types.length > 1) {
+              throw new TypeError(
+                `Multiple page types are not supported, found "${child.attributes.Type}"`,
+              );
+            }
+            pageData.Type = types[0];
           }
           if (child.attributes.DoublePage !== undefined) {
-            pageData.DoublePage = child.attributes.DoublePage === "true"
-              ? true
-              : false;
+            pageData.DoublePage = child.attributes.DoublePage === "true" ||
+              child.attributes.DoublePage === "1";
           }
           if (child.attributes.ImageSize !== undefined) {
             pageData.ImageSize = parseInt(child.attributes.ImageSize);

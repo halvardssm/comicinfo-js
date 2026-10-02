@@ -55,7 +55,7 @@ export class ComicInfo {
     });
     const res = XML.parse(xmlDocument).stringify(options);
 
-    this._comicInfoValidator.validate(res);
+    this._comicInfoValidator.parse(res);
 
     return res;
   }
@@ -64,7 +64,7 @@ export class ComicInfo {
     data: string,
     options: ParseOptions,
   ): ComicInfo {
-    const parsed = XML.parse(data);
+    const parsed = new XML(options.comicInfoValidator.parse(data));
 
     const comicInfoObject: Record<string, unknown> = {};
 
@@ -142,7 +142,7 @@ export class ComicInfo {
     text: unknown,
     options?: Pick<ElementNodeOptions, "attributes">,
   ): XmlElement | undefined {
-    if (text == null) return;
+    if (text == null || (Array.isArray(text) && text.length === 0)) return;
 
     const textN: XmlTextNode = {
       type: "text",
@@ -151,29 +151,13 @@ export class ComicInfo {
     return this._elementNode(name, { children: [textN], ...options });
   }
 
-  protected static _createComicInfoDocument(
-    rootChildren: XmlElement["children"],
-    options?: DocumentWrapperOptions,
-  ): XmlDocument {
-    return {
-      declaration: {
-        version: "1.0",
-        encoding: "utf-8",
-        type: "declaration",
-        line: 0,
-        column: 0,
-        offset: 0,
-      },
-      root: this._elementNode("ComicInfo", {
-        attributes: options?.attributes,
-        children: rootChildren,
-      }),
-    };
-  }
-
   protected static _parseTextNode: ParseXmlNodeFn<string> = (input) => {
     if (input.type !== "element") {
       throw new TypeError(`Input is not an XMLElement, found ${input.type}`);
+    }
+
+    if (input.children.length === 0) {
+      return { name: input.name.local, value: "" };
     }
 
     if (input.children[0].type !== "text") {
@@ -220,7 +204,7 @@ export class ComicInfo {
   ) => {
     const { name, value } = this._parseTextNode(input);
 
-    const parsedValue = value.split(",");
+    const parsedValue = value === "" ? [] : value.split(",");
 
     return { name, value: parsedValue };
   };
