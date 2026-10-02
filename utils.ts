@@ -23,6 +23,13 @@ export class ComicInfo {
     this._comicInfoValidator = options.comicInfoValidator;
   }
 
+  /**
+   * The ComicInfo data.
+   */
+  get data(): Record<string, unknown> {
+    return this._data;
+  }
+
   stringify(options?: StringifyOptions): string {
     const parsed = standardSchemaParse(this._dataSchema, this._data);
 

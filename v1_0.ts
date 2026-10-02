@@ -1,4 +1,4 @@
-import { unknown, z } from "@zod/zod";
+import { z } from "@zod/zod";
 import { type XmlNode, XMLValidator } from "@stdext/xml";
 import {
   ComicInfo as BaseComicInfo,
@@ -88,11 +88,11 @@ export const ComicPageInfoInputSchema = z.object({
 export type ComicPageInfoInputSchema = z.infer<typeof ComicPageInfoInputSchema>;
 
 /**
- * A yes/no value.
+ * A yes/no value. The XML value "Unknown" maps to undefined, meaning the value is unknown.
  * @see {@link https://github.com/anansi-project/comicinfo/blob/main/DOCUMENTATION.md#blackandwhite|BlackAndWhite}
  */
 export const YesNoSchema = z.literal(["Unknown", "No", "Yes"]).transform((v) =>
-  v === "Unknown" ? unknown : v
+  v === "Unknown" ? undefined : v
 );
 
 /**
@@ -340,8 +340,10 @@ export class ComicInfo extends BaseComicInfo {
     return super.stringify(combinedOptions);
   }
 
-  static override parse(data: string, options: ParseOptions): ComicInfo {
-    const combinedOptions: ParseOptions = {
+  static override parse(data: string, options?: ParseOptions): ComicInfo {
+    const combinedOptions: BaseParseOptions = {
+      dataSchema: ComicInfoSchema,
+      comicInfoValidator,
       ComicInfoClass: ComicInfo,
       ...options,
       overrideParseXmlNode: {
@@ -437,6 +439,7 @@ export class ComicInfo extends BaseComicInfo {
       if (!Array.isArray(input)) {
         throw new TypeError("Value of Pages must be an array");
       }
+      if (input.length === 0) return undefined;
 
       const pages: XmlNode[] = [];
 
@@ -486,7 +489,19 @@ export interface StringifyOptions<C = ComicInfoSchema>
 /**
  * Options for parsing XML to ComicInfo.
  */
-export interface ParseOptions<C = ComicInfoSchema> extends BaseParseOptions {
+export interface ParseOptions<C = ComicInfoSchema> {
+  /**
+   * Data schema used to validate the parsed data. Defaults to {@link ComicInfoSchema}.
+   */
+  dataSchema?: BaseParseOptions["dataSchema"];
+  /**
+   * Validator used to validate the input XML. Defaults to the v1.0 ComicInfo XSD.
+   */
+  comicInfoValidator?: BaseParseOptions["comicInfoValidator"];
+  /**
+   * Class used to construct the parsed ComicInfo. Defaults to the v1.0 ComicInfo class.
+   */
+  ComicInfoClass?: BaseParseOptions["ComicInfoClass"];
   /**
    * Override parse functions for specific fields.
    */
