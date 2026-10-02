@@ -74,6 +74,21 @@ export class ComicInfo {
     this._comicInfoValidator = cls.COMIC_INFO_VALIDATOR;
   }
 
+  /**
+   * Stringifies the ComicInfo data to an XML string, validating the output
+   * against the XSD.
+   *
+   * @param options - Serialization options, as defined by the XML
+   * stringifier. For example, `{ indent: "  " }` pretty-prints the output.
+   * @returns The XML string.
+   * @throws If the data does not conform to the XSD.
+   *
+   * @example
+   * ```ts
+   * const xml = comic.stringify();
+   * const pretty = comic.stringify({ indent: "  " });
+   * ```
+   */
   stringify(options?: StringifyOptions): string {
     const cls = this.constructor as typeof ComicInfo;
 
@@ -105,6 +120,20 @@ export class ComicInfo {
     return res;
   }
 
+  /**
+   * Parses an XML string into a ComicInfo instance of the called class,
+   * validating the input against the XSD.
+   *
+   * @param data - The ComicInfo XML string.
+   * @returns The parsed ComicInfo instance.
+   * @throws If the XML does not conform to the XSD.
+   *
+   * @example
+   * ```ts
+   * const comic = ComicInfo.parse(xml);
+   * console.log(comic.data.Title);
+   * ```
+   */
   static parse(data: string): ComicInfo {
     const cls = this as typeof ComicInfo;
 

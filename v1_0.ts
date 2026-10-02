@@ -283,6 +283,25 @@ export type ComicInfoSchemaInput = z.input<typeof ComicInfoSchema>;
  * CLASSES
  */
 
+/**
+ * ComicInfo for specification version v1.0.
+ *
+ * @example
+ * ```ts
+ * import { ComicInfo } from "@halvardm/comicinfo/v1";
+ *
+ * const comic = new ComicInfo({
+ *   Title: "The Amazing Spider-Man",
+ *   Series: "The Amazing Spider-Man",
+ *   Number: "42",
+ *   Writer: ["Dan Slott"],
+ * });
+ *
+ * const xml = comic.stringify();
+ * const parsed = ComicInfo.parse(xml);
+ * console.log(parsed.data.Title);
+ * ```
+ */
 export class ComicInfo extends BaseComicInfo {
   protected static override COMIC_INFO_SEQUENCED_ORDER: ReadonlyArray<
     string

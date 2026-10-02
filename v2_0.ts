@@ -179,6 +179,25 @@ export {
  * CLASSES
  */
 
+/**
+ * ComicInfo for specification version v2.0.
+ *
+ * @example
+ * ```ts
+ * import { ComicInfo } from "@halvardm/comicinfo/v2";
+ *
+ * const comic = new ComicInfo({
+ *   Title: "The Amazing Spider-Man",
+ *   Manga: "YesAndRightToLeft",
+ *   AgeRating: "PG",
+ *   Pages: [{ Image: 1, Bookmark: "cover" }],
+ * });
+ *
+ * const xml = comic.stringify();
+ * const parsed = ComicInfo.parse(xml);
+ * console.log(parsed.data.Title);
+ * ```
+ */
 export class ComicInfo extends V1ComicInfo {
   /**
    * Location of the XSD advertised by the generated XML.

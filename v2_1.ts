@@ -67,6 +67,25 @@ export {
  * CLASSES
  */
 
+/**
+ * ComicInfo for specification version v2.1.
+ *
+ * @example
+ * ```ts
+ * import { ComicInfo } from "@halvardm/comicinfo";
+ *
+ * const comic = new ComicInfo({
+ *   Title: "The Amazing Spider-Man",
+ *   Translator: ["Some translator"],
+ *   Tags: ["action"],
+ *   GTIN: "00123456789012",
+ * });
+ *
+ * const xml = comic.stringify();
+ * const parsed = ComicInfo.parse(xml);
+ * console.log(parsed.data.Title);
+ * ```
+ */
 export class ComicInfo extends V2ComicInfo {
   /**
    * Location of the XSD advertised by the generated XML.
