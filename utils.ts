@@ -56,7 +56,7 @@ export class ComicInfo {
     const xmlDocument = ComicInfo._documentWrapper(children, {
       attributes: {
         "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
-        "xsi:noNamespaceSchemaLocation":
+        "xsi:noNamespaceSchemaLocation": options?.schemaLocation ??
           "https://github.com/anansi-project/comicinfo/raw/refs/heads/main/schema/v1.0/ComicInfo.xsd",
       },
     });
@@ -235,6 +235,7 @@ export type ToXmlNodeFn = (value: unknown) => XmlNode | undefined;
 export interface StringifyOptions extends XmlStringifyOptions {
   overrideToXmlNode?: Record<string, ToXmlNodeFn | undefined>;
   order?: ReadonlyArray<string>;
+  schemaLocation?: string;
 }
 
 export type ComicInfoOptions = {

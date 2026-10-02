@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ComicInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/anansi-project/comicinfo/refs/heads/main/schema/v2.0/ComicInfo.xsd">
+  <Title>The Amazing Spider-Man #1</Title>
+  <Series>The Amazing Spider-Man</Series>
+  <Number>1</Number>
+  <Volume>1</Volume>
+  <Year>1963</Year>
+  <Publisher>Marvel</Publisher>
+</ComicInfo>

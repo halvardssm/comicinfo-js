@@ -286,7 +286,7 @@ export type ComicInfoSchemaInput = z.input<typeof ComicInfoSchema>;
  */
 
 export class ComicInfo extends BaseComicInfo {
-  protected static COMIC_INFO_SEQUENCED_ORDER = [
+  protected static COMIC_INFO_SEQUENCED_ORDER: ReadonlyArray<string> = [
     "Title",
     "Series",
     "Number",
@@ -479,7 +479,7 @@ export interface ComicInfoOptions extends Partial<BaseComicInfoOptions> {
 export interface StringifyOptions<C = ComicInfoSchema>
   extends BaseStringifyOptions {
   /**
-   * Override parse functions for specific fields.
+   * Override to-XML node functions for specific fields.
    */
   overrideToXmlNode?: Partial<
     Record<keyof C, ToXmlNodeFn | undefined>

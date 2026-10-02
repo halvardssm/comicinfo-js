@@ -1,51 +1,6 @@
 import { assertArrayIncludes, assertEquals, assertThrows } from "@std/assert";
 import { ComicInfo, ComicInfoSchema } from "./v1_0.ts";
-import type { z } from "@zod/zod";
-
-export const TEST_OBJECT_V1 = {
-  Title: "The Amazing Spider-Man",
-  Series: "The Amazing Spider-Man",
-  Number: "42",
-  Count: 100,
-  Volume: 1,
-  AlternateSeries: "Spider-Man",
-  AlternateNumber: "1",
-  AlternateCount: 50,
-  Summary: "Spider-Man fights Green Goblin",
-  Notes: "Digital version",
-  Year: 2024,
-  Month: 5,
-  Writer: ["Dan Slott"],
-  Penciller: ["John Romita"],
-  Inker: ["Jazon"],
-  Colorist: ["Justin Ponsor"],
-  Letterer: ["Joe Caramagna"],
-  CoverArtist: ["Alex Ross"],
-  Editor: ["Nick Lowe"],
-  Publisher: "Marvel Comics",
-  Imprint: "Marvel",
-  Genre: ["Superhero"],
-  Web: ["https://marvel.com"],
-  PageCount: 32,
-  LanguageISO: "en-US",
-  Format: "Comic",
-  BlackAndWhite: "No",
-  Manga: "No",
-  Pages: [
-    {
-      Image: 1,
-      Type: "FrontCover",
-      DoublePage: true,
-      ImageSize: 1024,
-      Key: "cover",
-      ImageWidth: 800,
-      ImageHeight: 1200,
-    },
-    {
-      Image: 2,
-    },
-  ],
-} satisfies z.input<typeof ComicInfoSchema>;
+import { TEST_OBJECT_V1 } from "./test_assets/objects.ts";
 
 const TEST_XML =
   `<?xml version="1.0" encoding="utf-8"?><ComicInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://github.com/anansi-project/comicinfo/raw/refs/heads/main/schema/v1.0/ComicInfo.xsd"><Title>The Amazing Spider-Man</Title><Series>The Amazing Spider-Man</Series><Number>42</Number><Count>100</Count><Volume>1</Volume><AlternateSeries>Spider-Man</AlternateSeries><AlternateNumber>1</AlternateNumber><AlternateCount>50</AlternateCount><Summary>Spider-Man fights Green Goblin</Summary><Notes>Digital version</Notes><Year>2024</Year><Month>5</Month><Writer>Dan Slott</Writer><Penciller>John Romita</Penciller><Inker>Jazon</Inker><Colorist>Justin Ponsor</Colorist><Letterer>Joe Caramagna</Letterer><CoverArtist>Alex Ross</CoverArtist><Editor>Nick Lowe</Editor><Publisher>Marvel Comics</Publisher><Imprint>Marvel</Imprint><Genre>Superhero</Genre><Web>https://marvel.com</Web><PageCount>32</PageCount><LanguageISO>en-US</LanguageISO><Format>Comic</Format><BlackAndWhite>No</BlackAndWhite><Manga>No</Manga><Pages><Page Image="1" Type="FrontCover" DoublePage="true" ImageSize="1024" Key="cover" ImageWidth="800" ImageHeight="1200"/><Page Image="2"/></Pages></ComicInfo>`;
