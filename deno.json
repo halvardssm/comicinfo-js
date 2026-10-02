@@ -14,9 +14,11 @@
   "imports": {
     "@standard-schema/spec": "jsr:@standard-schema/spec@^1.1.0",
     "@std/assert": "jsr:@std/assert@1",
-    "@std/xml": "jsr:@std/xml@^0.2.0",
+    "@stdext/xml": "jsr:@stdext/xml@^0.1.1",
     "@stdext/validation": "jsr:@stdext/validation@^0.1.0",
+    "@stdext/types": "jsr:@stdext/types@^0",
     "@zod/zod": "jsr:@zod/zod@^4.5.2"
   },
-  "lock": false
+  "lock": false,
+  "minimumDependencyAge":{"exclude": ["jsr:@stdext/*"]}
 }
