@@ -38,6 +38,10 @@ const comic = new ComicInfo({
 
 const xml = comic.stringify();
 console.log(xml);
+
+// Pretty-print with two-space indentation
+const pretty = comic.stringify({ indent: "  " });
+console.log(pretty);
 ```
 
 The data is available as the public `data` property:

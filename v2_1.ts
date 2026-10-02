@@ -2,7 +2,6 @@ import { z } from "@zod/zod";
 import { XMLValidator } from "@stdext/xml";
 import {
   ComicInfo as V2ComicInfo,
-  type ComicInfoOptions,
   ComicInfoSchema as V2ComicInfoSchema,
   StringArray,
   type StringifyOptions,
@@ -133,20 +132,15 @@ export class ComicInfo extends V2ComicInfo {
    */
   protected static override COMIC_INFO_VALIDATOR = comicInfoValidator;
 
-  constructor(data: ComicInfoSchemaInput, options?: ComicInfoOptions) {
-    const combinedOptions: BaseComicInfoOptions = {
-      dataSchema: ComicInfoSchema,
-      comicInfoValidator,
-      ...options,
-    };
-    super(data, combinedOptions);
+  constructor(data: ComicInfoSchemaInput) {
+    super(data);
   }
 
   /**
    * Functions used to parse specific XML elements.
    */
-  protected static override COMIC_INFO_PARSE_XML_NODE_OVERRIDES = {
-    ...V2ComicInfo.COMIC_INFO_PARSE_XML_NODE_OVERRIDES,
+  protected static override COMIC_INFO_PARSE_XML_NODE_FNS = {
+    ...V2ComicInfo.COMIC_INFO_PARSE_XML_NODE_FNS,
     Translator: this._parseStringArrayNode,
     Tags: this._parseStringArrayNode,
     StoryArcNumber: this._parseStringArrayNode,
@@ -157,4 +151,4 @@ export class ComicInfo extends V2ComicInfo {
  * TYPES
  */
 
-export type { ComicInfoOptions, StringifyOptions };
+export type { StringifyOptions };

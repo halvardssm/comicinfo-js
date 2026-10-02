@@ -11,6 +11,10 @@ import {
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { parse as standardSchemaParse } from "@stdext/validation";
 
+/**
+ * Base class shared by the versioned ComicInfo classes. Not part of the
+ * public API; use the versioned classes from the version modules instead.
+ */
 export class ComicInfo {
   /**
    * The ComicInfo data.
@@ -44,25 +48,30 @@ export class ComicInfo {
     | undefined = undefined;
 
   /**
-   * Functions used to convert specific data fields to XML nodes.
+   * Functions used to convert specific data fields to XML nodes. Overriding
+   * classes must declare this field after any static fields it references,
+   * as static fields are initialized in declaration order.
    */
-  protected static COMIC_INFO_TO_XML_NODE_OVERRIDES: Record<
+  protected static COMIC_INFO_TO_XML_NODE_FNS: Record<
     string,
     ToXmlNodeFn
   > = {};
 
   /**
-   * Functions used to parse specific XML elements.
+   * Functions used to parse specific XML elements. Overriding classes must
+   * declare this field after any static fields it references, as static
+   * fields are initialized in declaration order.
    */
-  protected static COMIC_INFO_PARSE_XML_NODE_OVERRIDES: Record<
+  protected static COMIC_INFO_PARSE_XML_NODE_FNS: Record<
     string,
-    OverrideParseXmlNodeFn
+    ParseXmlNodeFn
   > = {};
 
-  constructor(data: Record<string, unknown>, options: ComicInfoOptions) {
+  constructor(data: Record<string, unknown>) {
+    const cls = this.constructor as typeof ComicInfo;
     this.data = data;
-    this._dataSchema = options.dataSchema;
-    this._comicInfoValidator = options.comicInfoValidator;
+    this._dataSchema = cls.COMIC_INFO_DATA_SCHEMA;
+    this._comicInfoValidator = cls.COMIC_INFO_VALIDATOR;
   }
 
   stringify(options?: StringifyOptions): string {
@@ -76,7 +85,7 @@ export class ComicInfo {
 
     for (const key of keys) {
       const val = parsed[key];
-      const override = cls.COMIC_INFO_TO_XML_NODE_OVERRIDES[key];
+      const override = cls.COMIC_INFO_TO_XML_NODE_FNS[key];
       const res = override ? override(val) : ComicInfo._textNode(key, val);
       if (res) {
         children.push(res);
@@ -106,13 +115,11 @@ export class ComicInfo {
     for (const child of parsed.root.children) {
       if (child.type === "element") {
         const name = child.name.local;
-        const override = cls.COMIC_INFO_PARSE_XML_NODE_OVERRIDES[name];
+        const override = cls.COMIC_INFO_PARSE_XML_NODE_FNS[name];
 
         if (override) {
           const res = override(child);
-          if (res) {
-            comicInfoObject[res.name] = res.value;
-          }
+          comicInfoObject[res.name] = res.value;
         } else {
           const res = this._parseTextNode(child);
           comicInfoObject[res.name] = res.value;
@@ -125,10 +132,7 @@ export class ComicInfo {
       comicInfoObject,
     );
 
-    return new cls(validated, {
-      comicInfoValidator: cls.COMIC_INFO_VALIDATOR,
-      dataSchema: cls.COMIC_INFO_DATA_SCHEMA,
-    });
+    return new cls(validated);
   }
 
   /**
@@ -226,7 +230,7 @@ export class ComicInfo {
 
     if (!Number.isFinite(parsedValue)) {
       throw new TypeError(
-        `Expected value to be an float, was ${parsedValue}, original ${value}`,
+        `Expected value to be a float, was ${parsedValue}, original ${value}`,
       );
     }
 
@@ -269,7 +273,3 @@ export type ComicInfoOptions = {
 export type ParseXmlNodeFn<V = unknown> = (
   value: XmlNode,
 ) => { name: string; value: V };
-
-export type OverrideParseXmlNodeFn<V = unknown> = (
-  value: XmlNode,
-) => { name: string; value: V } | undefined;

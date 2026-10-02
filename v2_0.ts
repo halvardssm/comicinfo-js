@@ -2,7 +2,6 @@ import { z } from "@zod/zod";
 import { XMLValidator } from "@stdext/xml";
 import {
   ComicInfo as V1ComicInfo,
-  type ComicInfoOptions,
   ComicInfoSchema as V1ComicInfoSchema,
   type ComicInfoSchemaInput as V1ComicInfoSchemaInput,
   ComicPageInfoInputSchema as V1ComicPageInfoInputSchema,
@@ -243,15 +242,10 @@ export class ComicInfo extends V1ComicInfo {
    */
   protected static override COMIC_INFO_VALIDATOR = comicInfoValidator;
 
-  constructor(data: ComicInfoSchemaInput, options?: ComicInfoOptions) {
-    const combinedOptions: BaseComicInfoOptions = {
-      dataSchema: ComicInfoSchema,
-      comicInfoValidator,
-      ...options,
-    };
+  constructor(data: ComicInfoSchemaInput) {
     // The v1.0 constructor narrows the input type; the v2.0 input is a
     // superset of it and is validated by the v2.0 schema.
-    super(data as V1ComicInfoSchemaInput, combinedOptions);
+    super(data as V1ComicInfoSchemaInput);
   }
 
   /**
@@ -263,7 +257,7 @@ export class ComicInfo extends V1ComicInfo {
   > = (input) => {
     if (input.type !== "element" || input.name.local !== "Pages") {
       throw new TypeError(
-        `Input is not an Pages XMLElement, found ${input.type}`,
+        `Input is not a Pages XMLElement, found ${input.type}`,
       );
     }
 
@@ -289,8 +283,8 @@ export class ComicInfo extends V1ComicInfo {
   /**
    * Functions used to parse specific XML elements.
    */
-  protected static override COMIC_INFO_PARSE_XML_NODE_OVERRIDES = {
-    ...V1ComicInfo.COMIC_INFO_PARSE_XML_NODE_OVERRIDES,
+  protected static override COMIC_INFO_PARSE_XML_NODE_FNS = {
+    ...V1ComicInfo.COMIC_INFO_PARSE_XML_NODE_FNS,
     Day: this._parseIntNode,
     Characters: this._parseStringArrayNode,
     Teams: this._parseStringArrayNode,
@@ -306,4 +300,4 @@ export class ComicInfo extends V1ComicInfo {
  * TYPES
  */
 
-export type { ComicInfoOptions, StringifyOptions };
+export type { StringifyOptions };

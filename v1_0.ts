@@ -329,13 +329,8 @@ export class ComicInfo extends BaseComicInfo {
    */
   protected static override COMIC_INFO_VALIDATOR = comicInfoValidator;
 
-  constructor(data: ComicInfoSchemaInput, options?: ComicInfoOptions) {
-    const combinedOptions: BaseComicInfoOptions = {
-      dataSchema: ComicInfoSchema,
-      comicInfoValidator,
-      ...options,
-    };
-    super(data, combinedOptions);
+  constructor(data: ComicInfoSchemaInput) {
+    super(data);
   }
 
   /**
@@ -348,7 +343,7 @@ export class ComicInfo extends BaseComicInfo {
     ) => {
       if (input.type !== "element" || input.name.local !== "Pages") {
         throw new TypeError(
-          `Input is not an Pages XMLElement, found ${input.type}`,
+          `Input is not a Pages XMLElement, found ${input.type}`,
         );
       }
 
@@ -436,14 +431,14 @@ export class ComicInfo extends BaseComicInfo {
   /**
    * Functions used to convert specific data fields to XML nodes.
    */
-  protected static override COMIC_INFO_TO_XML_NODE_OVERRIDES = {
+  protected static override COMIC_INFO_TO_XML_NODE_FNS = {
     Pages: this._toPagesNode,
   };
 
   /**
    * Functions used to parse specific XML elements.
    */
-  protected static override COMIC_INFO_PARSE_XML_NODE_OVERRIDES = {
+  protected static override COMIC_INFO_PARSE_XML_NODE_FNS = {
     Count: this._parseIntNode,
     Volume: this._parseIntNode,
     AlternateCount: this._parseIntNode,
@@ -466,8 +461,5 @@ export class ComicInfo extends BaseComicInfo {
 /**
  * TYPES
  */
-
-export interface ComicInfoOptions extends Partial<BaseComicInfoOptions> {
-}
 
 export type { StringifyOptions } from "./utils.ts";
