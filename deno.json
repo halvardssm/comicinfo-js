@@ -8,7 +8,11 @@
     "./v2_1": "./v2_1.ts"
   },
   "tasks": {
-    "dev": "deno test --watch"
+    "dev": "deno test --watch",
+    "test": "deno test --coverage=coverage",
+    "coverage": "deno coverage coverage",
+    "fix": "deno fmt && deno lint --fix",
+    "check": "deno fmt --check && deno lint && deno check"
   },
   "license": "MIT",
   "imports": {
@@ -20,5 +24,10 @@
     "@zod/zod": "jsr:@zod/zod@^4.5.2"
   },
   "lock": false,
-  "minimumDependencyAge":{"exclude": ["jsr:@stdext/*"]}
+  "lint": {
+    "rules": {
+      "exclude": ["no-slow-types"]
+    }
+  },
+  "minimumDependencyAge": { "exclude": ["jsr:@stdext/*"] }
 }

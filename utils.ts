@@ -13,25 +13,21 @@ import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { parse as standardSchemaParse } from "@stdext/validation";
 
 export class ComicInfo {
-  protected _data: Record<string, unknown>;
+  /**
+   * The ComicInfo data.
+   */
+  data: Record<string, unknown>;
   protected _dataSchema: ComicInfoOptions["dataSchema"];
   protected _comicInfoValidator: ComicInfoOptions["comicInfoValidator"];
 
   constructor(data: Record<string, unknown>, options: ComicInfoOptions) {
-    this._data = data;
+    this.data = data;
     this._dataSchema = options.dataSchema;
     this._comicInfoValidator = options.comicInfoValidator;
   }
 
-  /**
-   * The ComicInfo data.
-   */
-  get data(): Record<string, unknown> {
-    return this._data;
-  }
-
   stringify(options?: StringifyOptions): string {
-    const parsed = standardSchemaParse(this._dataSchema, this._data);
+    const parsed = standardSchemaParse(this._dataSchema, this.data);
 
     const children: XmlNode[] = [];
 

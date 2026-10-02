@@ -1,7 +1,7 @@
 import type { z } from "@zod/zod";
-import { ComicInfoSchema } from "../v1_0.ts";
-import { ComicInfoSchema as V2ComicInfoSchema } from "../v2_0.ts";
-import { ComicInfoSchema as V2_1ComicInfoSchema } from "../v2_1.ts";
+import type { ComicInfoSchema } from "../v1_0.ts";
+import type { ComicInfoSchema as V2ComicInfoSchema } from "../v2_0.ts";
+import type { ComicInfoSchema as V2_1ComicInfoSchema } from "../v2_1.ts";
 
 /**
  * Test object covering all v1.0 fields.

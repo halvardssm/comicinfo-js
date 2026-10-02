@@ -5,12 +5,12 @@ import {
   ComicInfoSchema as V2ComicInfoSchema,
   StringArray,
 } from "./v2_0.ts";
-import {
-  type ComicInfoOptions as BaseComicInfoOptions,
-  type ParseOptions as BaseParseOptions,
-  type ParseXmlNodeFn,
-  type StringifyOptions as BaseStringifyOptions,
-  type ToXmlNodeFn,
+import type {
+  ComicInfoOptions as BaseComicInfoOptions,
+  ParseOptions as BaseParseOptions,
+  ParseXmlNodeFn,
+  StringifyOptions as BaseStringifyOptions,
+  ToXmlNodeFn,
 } from "./utils.ts";
 import comicInfoXsd from "./xsd/2_1.xsd" with { type: "text" };
 

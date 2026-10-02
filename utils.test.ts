@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertThrows } from "@std/assert";
-import { XML, XMLValidator, type XmlElement } from "@stdext/xml";
+import { XML, type XmlElement, XMLValidator } from "@stdext/xml";
 import { z } from "@zod/zod";
 import { ComicInfo } from "./utils.ts";
 
@@ -241,13 +241,18 @@ Deno.test("stringify: converts numbers to strings", () => {
 });
 
 Deno.test("stringify: handles special characters in values", () => {
-  const result = new ComicInfo({ Title: 'Test & <Comic> "Quotes"' },
-    testOptions).stringify();
+  const result = new ComicInfo(
+    { Title: 'Test & <Comic> "Quotes"' },
+    testOptions,
+  ).stringify();
 
   const parsed = XML.parse(result);
   const titleElement = parsed.root.children[0] as XmlElement;
 
-  assertEquals((titleElement.children[0] as { text: string }).text, 'Test & <Comic> "Quotes"');
+  assertEquals(
+    (titleElement.children[0] as { text: string }).text,
+    'Test & <Comic> "Quotes"',
+  );
 });
 
 Deno.test("stringify: handles empty input object", () => {
@@ -262,8 +267,10 @@ Deno.test("stringify: handles empty input object", () => {
 
 Deno.test("stringify: uses order option to sequence elements", () => {
   // The data is in reverse sequence order; the order option restores it.
-  const result = new ComicInfo({ Series: "Test Series", Title: "Test" },
-    testOptions).stringify({ order: ["Title", "Series"] });
+  const result = new ComicInfo(
+    { Series: "Test Series", Title: "Test" },
+    testOptions,
+  ).stringify({ order: ["Title", "Series"] });
 
   const parsed = XML.parse(result);
 

@@ -1,5 +1,5 @@
 import { assertArrayIncludes, assertEquals, assertThrows } from "@std/assert";
-import { ComicInfo, ComicInfoSchema } from "./v1_0.ts";
+import { ComicInfo } from "./v1_0.ts";
 import { TEST_OBJECT_V1 } from "./test_assets/objects.ts";
 
 const TEST_XML =
