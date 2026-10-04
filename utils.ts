@@ -7,9 +7,9 @@ import {
   type XmlNode,
   type XmlTextNode,
   type XMLValidator,
-} from "@stdext/xml";
+} from "@stdx/xml";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
-import { parse as standardSchemaParse } from "@stdext/validation";
+import { parse as standardSchemaParse } from "@stdx/validation";
 
 /**
  * Base class shared by the versioned ComicInfo classes. Not part of the

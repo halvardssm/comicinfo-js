@@ -9,7 +9,7 @@
  * @module
  */
 import { z } from "@zod/zod";
-import { XMLValidator } from "@stdext/xml";
+import { XMLValidator } from "@stdx/xml";
 import {
   ComicInfo as V2ComicInfo,
   ComicInfoSchema as V2ComicInfoSchema,

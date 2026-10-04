@@ -10,7 +10,7 @@
  * @module
  */
 import { z } from "@zod/zod";
-import { type XmlNode, XMLValidator } from "@stdext/xml";
+import { type XmlNode, XMLValidator } from "@stdx/xml";
 import {
   ComicInfo as BaseComicInfo,
   type ComicInfoOptions as BaseComicInfoOptions,

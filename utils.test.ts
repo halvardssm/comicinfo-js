@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertThrows } from "@std/assert";
-import { XML, type XmlElement, XMLValidator } from "@stdext/xml";
+import { XML, type XmlElement, XMLValidator } from "@stdx/xml";
 import { z } from "@zod/zod";
 import { ComicInfo, type ToXmlNodeFn } from "./utils.ts";
 
